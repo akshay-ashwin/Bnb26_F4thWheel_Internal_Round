@@ -62,7 +62,7 @@ def client_ip(scope: Scope, headers: dict[str, str]) -> str:
         if sim_ip:
             return sim_ip.strip()
     client = scope.get("client")
-    return str(client[0]) if client else "0.0.0.0"  # noqa: S104 - a label, not a bind address
+    return str(client[0]) if client else "0.0.0.0"  # noqa: S104 - a placeholder, not a bind address
 
 
 def reject_response(d: Decision) -> tuple[int, list[tuple[bytes, bytes]], bytes]:

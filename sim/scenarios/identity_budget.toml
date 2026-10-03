@@ -1,0 +1,24 @@
+# Identity-budget sweep template: 1,000 genuine users plus one attacker whose identity count is
+# set per run with `--identities N` (0, 500, 2000, 5000, 10000). The attacker's identities use
+# 'good' proxies (unique device, IP and browser UA, human-like OTP timing), so L7 sees little:
+# this isolates Sybil (identity-count) fairness from speed fairness.
+name = "identity_budget"
+seed = 42
+capacity = 100
+registration_s = 30
+claim_window_s = 25
+bot_connections = 1000
+
+[humans]
+count = 1000
+arrival = { type = "uniform", spread_s = 15 }
+
+[[attackers]]
+actor_id = "SYBIL"
+kind = "farm"
+identities = 500
+clients_per_identity = 1
+rps_per_client = 1
+clean_frac = 1.0
+step_up_success_p = 1.0
+prestage_l6_off = true

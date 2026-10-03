@@ -1,0 +1,20 @@
+# An attacker with 10 identities replays any admission token it sees from its other sessions,
+# and sends forged copies. Expected: zero seats won by replay or forgery.
+name = "token_replay"
+seed = 42
+capacity = 50
+registration_s = 25
+claim_window_s = 25
+
+[humans]
+count = 200
+arrival = { type = "uniform", spread_s = 10 }
+
+[[attackers]]
+actor_id = "REPLAY"
+kind = "replay"
+identities = 10
+devices = 10
+subnets = 10
+ips_per_subnet = 1
+poll_s = 0.5
