@@ -1,0 +1,26 @@
+# LF everywhere. This overrides any developer's core.autocrlf, so Windows
+# checkouts get LF too (CR bytes break entrypoints, .env values and SQL in Linux containers).
+* text=auto eol=lf
+
+# Binary files: never touched by line-ending conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.avif binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.zip binary
+*.gz binary
+*.tar binary
+*.tgz binary
+*.pdf binary
+*.mp4 binary
+*.webm binary
+*.mp3 binary
+*.wasm binary

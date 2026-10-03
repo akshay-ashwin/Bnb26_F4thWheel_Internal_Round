@@ -1,0 +1,4 @@
+#!/bin/sh
+# Staged-file checks (no CR bytes). Logic lives in tools/fd/lint.py. Fails closed.
+command -v uv >/dev/null 2>&1 || { echo "fd: uv is not installed or not on PATH, so this commit is blocked (fail closed). Install uv, then run: uv run fd doctor" >&2; exit 1; }
+exec uv run --quiet --project "$(dirname "$0")/../.." fd lint --staged

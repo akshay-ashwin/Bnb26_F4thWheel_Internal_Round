@@ -1,0 +1,37 @@
+[project]
+name = "fairdrop-tools"
+version = "0.1.0"
+description = "The `uv run fd <task>` task CLI for Fair Drop (standard library only)."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+fd = "fd.cli:main"
+
+# Non-default group: hooks (`uv run fd ...`) install nothing extra; `fd lint` asks for it.
+[dependency-groups]
+lint = ["ruff>=0.6", "mypy>=1.11"]
+
+[build-system]
+requires = ["uv_build>=0.9.0,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "fd"
+module-root = "tools"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+# Task CLI runs git/docker with argument lists, never shell=True.
+"tools/fd/**" = ["S603", "S607"]
+"tools/tests/**" = ["S101", "S603", "S607"]
+
+[tool.mypy]
+strict = true
+files = ["tools"]

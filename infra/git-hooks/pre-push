@@ -1,0 +1,4 @@
+#!/bin/sh
+# Rule R1: scan every commit being pushed. Logic lives in tools/fd/attribution.py. Fails closed.
+command -v uv >/dev/null 2>&1 || { echo "fd: uv is not installed or not on PATH, so this push is blocked (fail closed). Install uv, then run: uv run fd doctor" >&2; exit 1; }
+exec uv run --quiet --project "$(dirname "$0")/../.." fd attribution-check pre-push
