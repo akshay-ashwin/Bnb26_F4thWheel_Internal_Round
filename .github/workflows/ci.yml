@@ -94,5 +94,8 @@ jobs:
         run: uv run python -m unittest discover -s tools/tests -t tools -v
       - name: Native simulator smoke run (uvloop is not installed here)
         run: uv run --project sim sim
+      # Run from sim/ so pytest uses sim/pyproject.toml (from the repo root it would collect
+      # every project's tests).
       - name: Simulator unit tests
-        run: uv run --project sim pytest -q
+        working-directory: sim
+        run: uv run pytest -q
