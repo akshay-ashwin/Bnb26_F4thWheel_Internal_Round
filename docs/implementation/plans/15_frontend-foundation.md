@@ -1,5 +1,7 @@
 # Plan 15 — Frontend Foundation: App Shell, Typed API Client, Retry/Idempotency Engine, Polling, Mocks
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: BroadcastChannel, MSW scenario panel (a few fixtures only), generated-types CI check. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §6 Frontend + Live updates, §7 Idempotency (sessionStorage key), §7 Session reliability, §10 (both views render from two endpoints), §11 conventions, §14 user-visible failure behaviour, §16 Ameya deliverable 1 |

@@ -1,5 +1,7 @@
 # Plan 12 — Abuse Layers L1–L5: Redis Lua Token Buckets, Shedding Middleware, Layer Switches
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: multi-bucket Lua, cooldowns, Redis-down fallback buckets (fail open and count), per-layer toggles (keep one limiter on/off and one risk on/off). Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §2 Scalability row, §8 Layers table L1–L5 + design rules, §12 Redis `rl:*`, §14 Redis down, §16 middleware signature, §20 attack vector 3 (polling flood) |

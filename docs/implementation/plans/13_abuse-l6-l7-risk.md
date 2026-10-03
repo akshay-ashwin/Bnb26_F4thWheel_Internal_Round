@@ -1,5 +1,7 @@
 # Plan 13 — Identity-Farming Defences: L6 OTP Abuse Controls & L7 Cluster / Velocity Risk Scoring
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: R_TIMING, R_UA, ASN, per-prefix and per-device OTP throttles. Keep R_DEVICE, R_SUBNET, R_FAST_OTP, per-phone and per-IP OTP limits, and re-score at close. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §2 Identity farming row, §4 "Make farmed identities visible", §8 L6, L7, Risk scoring table, design rules, §12 Redis `cl:*`, §19 "What if you flag a legitimate user?", §20 attack vector 1 |

@@ -1,5 +1,7 @@
 # Plan 10 — Admission Tokens (L4) & the Fair-Mode Claim Path
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: key rotation (kid), L4 toggle, Redis jti check. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §3 option 4, §4 step 4, §4 attacker-lever table (token replay/sharing), §7 claim operation + session reliability (expired token), §8 L4, §11 admission token, §14 "token replayed", §15 token replay scenario |

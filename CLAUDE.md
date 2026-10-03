@@ -101,3 +101,14 @@ Full reasoning: `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`
 - Every error goes through the single error envelope.
 - Every response includes `server_time`.
 - Prefer boring, explainable solutions. The novelty is the mechanism and the evidence, not the tooling.
+
+## LEAN MODE (D-004, 2026-10-04) — overrides R2, R3, R4 and every plan's close-out
+
+Time is short. Where this section conflicts with R2–R4 or a plan's "Close-out sequence", this section wins.
+
+- **Kept unchanged:** the 8 invariants, R1 and the hooks, and the plans' integrity tests.
+- **R2 (lean):** change the design freely when it is simpler and the invariants hold. Write a D-record only if the API contract changes; otherwise add one line to `PLAN_CHANGELOG.md`. Edit later plans only for contract changes.
+- **R3 (lean):** refinement = run the full test suite once and skim your own diff.
+- **R4 (lean):** the review log is at most 15 lines: what was built, how to verify (commands), what was cut or changed, risks. Plain words.
+- **Cuts:** do not build anything marked `[CUT]`, or anything in "stretch", "optional" or "if time permits" text. No plan-mode step.
+- **Lanes:** backend = Akshay owns `api/` except `api/app/abuse/`; Ameya owns `web/`; Saanvi owns `sim/` and `api/app/abuse/`. `docs/contract/` is frozen after Plan 03; a change needs a note to all three people and an updated OpenAPI snapshot.

@@ -1,5 +1,7 @@
 # Plan 05 — Idempotency Framework (Keys, Request Hashing, Stored Responses)
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: Redis registration idempotency (rely on the unique index), cleanup job. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §7 Idempotency: three identical POST /claim, §7 What lives where (idempotency records), §8 L5, §14 timeouts / lost responses |

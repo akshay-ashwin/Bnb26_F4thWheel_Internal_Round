@@ -1,5 +1,7 @@
 # Plan 17 — Judge Dashboard: Story Strip, Traffic, Ground Truth vs Detected, Inventory, Fairness (Ghost Overlay), Performance, Controls, Draw-Verify
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: story-strip animation (static labels), performance panel, PNG export, freeze frame, memory profiling. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §10 Judge/admin view (1–7), §9 metrics + chance band + scorecard, §18 demo script, §20 "features to make especially impressive" |

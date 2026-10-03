@@ -1,5 +1,7 @@
 # Plan 07 — Registration (Entries) and the `/me` Status Endpoint
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: per-drop cache version, Redis /me cache (read Postgres directly), O(1) offer_head (use a count query). Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §4 step 2 Register, §4 "If one attacker controls 10,000 clients" (volume collapses), §7 Session reliability, §10 user view, §11 `POST /entries`, `GET /me`, §12 Redis `me:{entry_id}` |

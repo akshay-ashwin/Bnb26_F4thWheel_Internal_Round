@@ -1,5 +1,7 @@
 # Plan 06 — Drop Lifecycle: Admin Control, Seed Commitment, Phase State Machine, Reset & Runs
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: dual auto-close (keep the ticker only), public drop cache. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §4 steps 2–4, §11 `GET /drops/{id}`, `POST /admin/drops`, `POST /admin/drops/{id}/phase`, §12 drops, §13 state machine, §18 demo flow (switch FIFO ↔ Fair, reset) |

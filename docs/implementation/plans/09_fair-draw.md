@@ -1,5 +1,7 @@
 # Plan 09 — Fair Mode: Window Freeze, Commit-Reveal Provable Draw, Offers & Waitlist
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: drand, gzip proof (plain JSON is fine). Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §3 options table (why option 6), §4 steps 2–3, §4 "Bound the damage", §11 `/draw-proof`, §12 entries.draw_rank, §14 "Draw job crashes midway", §17 Build first #2, §19 "Couldn't you rig the draw?", §20 operator-trust weakness |

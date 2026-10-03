@@ -1,5 +1,7 @@
 # Plan 16 — User Journey Screens (Verify → Enter → Wait → Offered/Step-Up → Allocated/Waitlist)
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: a11y/Lighthouse and QR placeholder; keep only 3 e2e tests (happy path, refresh, offline-during-confirm). Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §10 User view table, §13 state machine, §7 Session reliability, §14 "User sees" column, §18 demo 0:30–1:00 |

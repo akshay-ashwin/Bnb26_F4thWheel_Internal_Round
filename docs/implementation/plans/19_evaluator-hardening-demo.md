@@ -1,5 +1,7 @@
 # Plan 19 — Evaluator & Scorecard, Identity-Budget Sweep, Chaos + Load Hardening, Final Runs & Demo Readiness
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: bootstrap CI, Gini, perf-tuning loop beyond one baseline, chaos beyond Redis kill and API restart, full freeze checklist (keep CI green and the attribution audit). Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §1 core claim + "prove it", §9 all metrics + judge scorecard, §14 failure handling + MUST/SHOULD/STRETCH + cut list, §17 hours 10–18, §18 5-minute demo, §19 judge Q&A, §20 weaknesses + biggest weakness fixed |

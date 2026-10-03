@@ -1,5 +1,7 @@
 # Plan 18 — Attack Simulator: Labelled Client Population, Scenarios, Multiprocess Runner, Ground Truth & Telemetry
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: separate multi-tab/replay/repeated/burst scenarios (keep normal, bot_flood, identity_farming, combined_demo), multiprocess shards unless the achieved load is too low, sweep automation (a loop script is fine). Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §1 Adversarial testing row, §6 Attack simulator + throughput reality check, §15 entire section, §16 Saanvi deliverables, §18 demo (launch attacks live), §20 "you simulate your own attackers" |

@@ -1,5 +1,7 @@
 # Plan 08 — Allocation Engine: Atomic Claim, FIFO Mode End-to-End & Live Integrity
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: remaining-counter reconciliation job, integrity in-process cache, kill-mid-transaction test. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §7 Allocation integrity, Critical claim operation, Idempotency table, Session reliability, §11 `POST /claim` + FIFO note, `/admin/.../integrity`, §14 failure rows, §17 "Build FIFO end to end first" |

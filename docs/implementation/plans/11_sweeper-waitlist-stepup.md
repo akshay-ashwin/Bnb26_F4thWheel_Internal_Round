@@ -1,5 +1,7 @@
 # Plan 11 — Leader Jobs, Offer-Expiry Sweeper, Waitlist Promotion, Step-Up (L8) & Failure Resilience
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: outage-extension heartbeat, advisory-lock leader (run jobs in one `jobs` container), all chaos rows except Redis-down and API restart. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §4 step 4 + "Gate rather than block", §7 session reliability (expired offer), §8 L8, §11 `POST /step-up`, §13 state machine, §14 failure table (Redis down, Postgres down, restart, sweeper crash), §16 hour 14 deliverable |

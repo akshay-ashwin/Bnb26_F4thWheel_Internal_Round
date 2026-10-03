@@ -1,5 +1,7 @@
 # Plan 02 — Database Schema, Constraints, Migrations & Integrity Views
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: role/permission hardening, `system_state` table, 52k perf test. Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §7 What lives where, §7 Allocation integrity, §12 Database schema, §13 State machine |

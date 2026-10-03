@@ -1,5 +1,7 @@
 # Plan 14 — Metrics, Export, Simulator Telemetry & Ground-Truth Isolation
 
+> **[CUT] by D-004 (2026-10-04, LEAN MODE):** do not build: histograms (use client-observed latency posted by the simulator), OpenAPI drift CI, mechanical isolation check (keep a simple grep test). Also skip anything in "stretch", "optional" or "if time permits" text.
+
 | Field | Value |
 |---|---|
 | Design-doc sections | §5 Metrics row, §6 Metrics, §9 metrics list, §10 judge view data needs, §11 `/admin/.../metrics`, `/export`, `/sim/telemetry`, §12 `m:*`, `sim:*`, §15 "labels never reach the backend" |
