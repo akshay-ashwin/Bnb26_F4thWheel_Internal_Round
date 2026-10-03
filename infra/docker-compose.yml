@@ -54,9 +54,10 @@ services:
       - -c
       - >-
         uv sync --frozen --no-install-project &&
+        python -m app.preflight &&
         if [ "$${API_RELOAD}" = "true" ];
-        then exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload;
-        else exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$${UVICORN_WORKERS:-4}";
+        then exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log;
+        else exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$${UVICORN_WORKERS:-4}" --no-access-log;
         fi
     volumes:
       - ./api:/app

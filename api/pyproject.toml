@@ -9,6 +9,7 @@ dependencies = [
     "asyncpg>=0.30",
     "redis>=5.0",
     "pydantic>=2.8",
+    "pydantic-settings>=2.4",
 ]
 
 [dependency-groups]

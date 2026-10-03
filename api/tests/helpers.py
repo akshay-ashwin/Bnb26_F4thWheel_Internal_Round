@@ -1,8 +1,10 @@
-"""Small SQL helpers shared by the database tests."""
+"""SQL helpers shared by the database tests, plus a concurrency helper for later plans."""
 
 from __future__ import annotations
 
+import asyncio
 import uuid
+from collections.abc import Awaitable, Callable
 
 import asyncpg
 
@@ -86,3 +88,17 @@ async def claim(conn: asyncpg.Connection, drop_id: uuid.UUID) -> uuid.UUID:
         )
         await allocate(conn, drop_id, entry_id, seat_id)
     return entry_id
+
+
+async def fire_concurrently[T](n: int, make_request: Callable[[int], Awaitable[T]]) -> list[T]:
+    """Run make_request(0..n-1) so that all start together (released by one barrier event)."""
+    start = asyncio.Event()
+
+    async def runner(i: int) -> T:
+        await start.wait()
+        return await make_request(i)
+
+    tasks = [asyncio.create_task(runner(i)) for i in range(n)]
+    await asyncio.sleep(0)  # let every task reach the barrier
+    start.set()
+    return await asyncio.gather(*tasks)

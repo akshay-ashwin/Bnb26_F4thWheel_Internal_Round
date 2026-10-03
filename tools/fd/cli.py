@@ -47,7 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
     ev.add_argument("--native", action="store_true", help="run on the host, not in a container")
 
     sub.add_parser("demo-reset", help="reset for a demo run (Plan 19)")
-    sub.add_parser("openapi", help="export the OpenAPI snapshot (Plan 03)")
+    oa = sub.add_parser("openapi", help="export the OpenAPI snapshot to docs/contract")
+    oa.add_argument("--check", action="store_true", help="fail if the snapshot is out of date")
     sub.add_parser("doctor", help="pre-flight checks for this machine")
 
     attr = sub.add_parser("attribution-check", help="Rule R1 guard (used by hooks and CI)")
@@ -102,6 +103,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return tasks.reset_db()
     if task == "test-api":
         return tasks.test_api(args.pytest_args)
+    if task == "openapi":
+        return tasks.openapi(check=args.check)
     if task == "test-web":
         return tasks.test_web(e2e=args.e2e)
     if task == "lint":

@@ -17,7 +17,6 @@ _MIGRATE_ATTEMPTS = 3
 
 # Tasks that belong to a later plan print this instead of failing mysteriously.
 NOT_IMPLEMENTED: dict[str, int] = {
-    "openapi": 3,
     "sim": 18,
     "eval": 19,
     "demo-reset": 19,
@@ -133,7 +132,7 @@ def test_api(pytest_args: list[str]) -> int:
     # Same sync-then-run shape as the api service command; "$@" carries the pytest arguments.
     script = 'uv sync --frozen --no-install-project && exec pytest "$@"'
     return repo.run_live(
-        ["docker", "compose", "run", "--rm", "--no-deps"]
+        ["docker", "compose", "run", "--rm"]
         + ["-e", "TEST_DATABASE_URL", "-e", "TEST_APP_DATABASE_URL"]
         + ["api", "sh", "-c", script, "pytest", *pytest_args],
         env=env,
@@ -153,6 +152,49 @@ def down() -> int:
 
 def logs(service: str | None) -> int:
     return _compose("logs", "-f", *([service] if service else []))
+
+
+# A one-off `compose run` replaces the service command, so it must re-sync the venv volume itself.
+_SYNC_THEN = ("sh", "-c", 'uv sync --frozen --no-install-project -q 1>&2 && exec "$@"', "sh")
+
+OPENAPI_SNAPSHOT = "docs/contract/openapi.json"
+
+
+def openapi(*, check: bool) -> int:
+    """Export the spec from the api container; write it (or compare it) from the host side."""
+    if not _require_env():
+        return 1
+    result = repo.run(
+        [
+            "docker",
+            "compose",
+            "run",
+            "--rm",
+            "--no-deps",
+            "-T",
+            "api",
+            *_SYNC_THEN,
+            "python",
+            "-m",
+            "app.export_openapi",
+        ]
+    )
+    if result.returncode != 0:
+        console.fail("could not export the OpenAPI spec")
+        return 1
+    spec = result.stdout  # text mode already normalises CRLF to LF
+    path = repo.repo_root() / OPENAPI_SNAPSHOT
+    if check:
+        if path.is_file() and path.read_bytes().decode("utf-8") == spec:
+            console.info("OpenAPI snapshot is up to date")
+            return 0
+        console.fail(
+            f"{OPENAPI_SNAPSHOT} differs from the live spec: contract change? run `uv run fd openapi`"
+        )
+        return 1
+    path.write_bytes(spec.encode("utf-8"))
+    console.info(f"wrote {OPENAPI_SNAPSHOT}")
+    return 0
 
 
 def test_web(*, e2e: bool) -> int:

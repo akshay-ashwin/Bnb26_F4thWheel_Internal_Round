@@ -1,12 +1,14 @@
-"""Database test fixtures.
+"""Shared fixtures.
 
 Tests run against a real PostgreSQL whose name ends in `_test` (they truncate every table, so any
 other name is refused). `uv run fd test-api` migrates that database with the same dbmate files as
 the real one before pytest starts; nothing here creates schema.
 
-Two connections are used on purpose:
+Two database roles are used on purpose:
   * the owner role (TEST_DATABASE_URL, a superuser) for fixtures and fault injection;
   * the restricted application role (TEST_APP_DATABASE_URL), exactly what the api will use.
+
+Redis uses a reserved DB index (15) so tests never touch the dev data.
 """
 
 from __future__ import annotations
@@ -16,7 +18,14 @@ from collections.abc import AsyncIterator
 from urllib.parse import urlparse
 
 import asyncpg
+import httpx
 import pytest
+
+from app.config import Settings, get_settings
+from app.main import create_app
+
+TEST_REDIS_URL = "redis://redis:6379/15"
+DEAD_REDIS_URL = "redis://127.0.0.1:1/0"
 
 TABLES = (
     "allocations, seats, entries, sessions, idempotency_records, abuse_events, "
@@ -66,3 +75,60 @@ async def app_db(app_url: str, db: asyncpg.Connection) -> AsyncIterator[asyncpg.
         yield conn
     finally:
         await conn.close()
+
+
+@pytest.fixture(scope="session")
+def base_settings() -> Settings:
+    return get_settings()
+
+
+@pytest.fixture
+def test_settings(base_settings: Settings, app_url: str) -> Settings:
+    """Settings for the api under test: the test database as the restricted role, test Redis."""
+    return base_settings.model_copy(
+        update={"database_url": type(base_settings.database_url)(app_url), "redis_url": TEST_REDIS_URL}
+    )
+
+
+@pytest.fixture
+async def clean_db(db: asyncpg.Connection) -> None:
+    """Empty database for a test that goes through the api (alias of the `db` clean slate)."""
+
+
+async def _client(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+            client.app = app  # type: ignore[attr-defined]
+            yield client
+
+
+@pytest.fixture
+async def client(test_settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
+    async for c in _client(test_settings.model_copy(update={"sim_mode": True})):
+        yield c
+
+
+@pytest.fixture
+async def client_no_sim(test_settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
+    async for c in _client(test_settings.model_copy(update={"sim_mode": False})):
+        yield c
+
+
+@pytest.fixture
+async def client_redis_down(test_settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
+    """Redis points at a dead port: tests fallbacks and the circuit breaker."""
+    settings = test_settings.model_copy(update={"redis_url": DEAD_REDIS_URL, "sim_mode": True})
+    async for c in _client(settings):
+        yield c
+
+
+@pytest.fixture
+def admin_headers(base_settings: Settings) -> dict[str, str]:
+    return {"X-Admin-Key": base_settings.admin_key.get_secret_value()}
+
+
+@pytest.fixture
+def sim_headers(base_settings: Settings) -> dict[str, str]:
+    return {"X-Sim-Key": base_settings.sim_telemetry_key.get_secret_value()}
