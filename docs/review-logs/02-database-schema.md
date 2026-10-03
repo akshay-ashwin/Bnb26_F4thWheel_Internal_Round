@@ -1,0 +1,9 @@
+# Review log — Plan 02: database schema (lean mode, D-004)
+
+**Built:** one dbmate migration (`api/migrations/20261004000001_init.sql`) with the design-doc tables plus `drop_runs`, `app_settings`, extra timestamps, `window_s` and `run_no`. Functions `create_drop_seats` (call in the same transaction as the drop insert) and `admin_reset_drop`. View `v_drop_integrity` (also checks seats vs allocations vs ALLOCATED entries). `uv run fd migrate` (applies and dumps `api/schema.sql`) and `uv run fd reset-db` now work. Dev seed: `infra/postgres/seed_dev.sql`.
+**Why 501 seats is impossible:** there are exactly 500 seat rows; selling one is a conditional UPDATE; `UNIQUE(drop_id, entry_id)`, `UNIQUE(entry_id)` and `UNIQUE(seat_id)` on allocations stop one person holding two seats, and the CHECK ties `sold` to a non-null entry. Two people grabbing the last seat: only one UPDATE finds it free.
+**Verify:** `uv run fd up`, `uv run fd migrate` (run twice; second run is a no-op), then `docker compose run --rm api pytest -q` → 11 passed (unique entry, one seat per entry, CHECK, allocation uniques, NULL seats/ranks, atomic drop+seats, integrity view ok/flagged, reset).
+**Cut ([CUT] in plan 02):** `system_state` table, role/permission hardening (so no append-only role test; allocations are plain tables for now), 52k-row perf test (view latency not measured).
+**Changed:** the migrate service mounts `./api` at `/db` so `dbmate dump` can write `api/schema.sql`. mypy ignores missing asyncpg stubs.
+**Risks:** `allocations` is not enforced append-only (cut); the integrity view is unmeasured at 52k entries (it is polled every second, so check it in Plan 14). Tests assume Postgres is up in compose.
+**Next plans:** column names match the design doc; `drops.window_s` is NOT NULL; seats must be created via `create_drop_seats` in the drop-insert transaction. Plan 11's heartbeat needs no table (cut).

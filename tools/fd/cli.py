@@ -93,6 +93,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return tasks.down()
     if task == "logs":
         return tasks.logs(args.service)
+    if task == "migrate":
+        return tasks.migrate()
+    if task == "reset-db":
+        return tasks.reset_db()
     if task == "test-web":
         return tasks.test_web(e2e=args.e2e)
     if task == "lint":

@@ -6,8 +6,6 @@ from fd import console, lint, repo
 
 # Tasks that belong to a later plan print this instead of failing mysteriously.
 NOT_IMPLEMENTED: dict[str, int] = {
-    "migrate": 2,
-    "reset-db": 2,
     "test-api": 3,
     "openapi": 3,
     "sim": 18,
@@ -45,6 +43,24 @@ def down() -> int:
 
 def logs(service: str | None) -> int:
     return _compose("logs", "-f", *([service] if service else []))
+
+
+def migrate() -> int:
+    if not _require_env():
+        return 1
+    code = _compose("run", "--rm", "migrate", "up")
+    if code == 0:
+        code = _compose("run", "--rm", "migrate", "dump")
+    return code
+
+
+def reset_db() -> int:
+    if not _require_env():
+        return 1
+    code = _compose("down", "-v", "--remove-orphans")
+    if code == 0:
+        code = _compose("up", "-d", "--wait", "postgres")
+    return code or migrate()
 
 
 def test_web(*, e2e: bool) -> int:

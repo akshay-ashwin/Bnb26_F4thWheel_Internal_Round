@@ -146,15 +146,15 @@ services:
       api:
         condition: service_healthy
 
-  # One-shot migrations runner (Plan 02 fills it in): uv run fd migrate
+  # One-shot migrations runner: uv run fd migrate (also writes api/schema.sql)
   migrate:
     profiles: ["tools"]
     image: ghcr.io/amacneil/dbmate:2
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-fairdrop}:${POSTGRES_PASSWORD:?run "uv run fd secrets" first}@postgres:5432/${POSTGRES_DB:-fairdrop}?sslmode=disable
     volumes:
-      - ./api/migrations:/db/migrations
-    command: ["--help"]
+      - ./api:/db
+    command: ["status"]
     depends_on:
       postgres:
         condition: service_healthy
