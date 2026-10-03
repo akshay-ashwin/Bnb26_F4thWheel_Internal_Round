@@ -1,0 +1,9 @@
+# The real compose entry point (a file, not a symlink: git symlinks need extra rights on Windows).
+# project_directory keeps every relative path in the included file relative to the repo root.
+# `name` must be set here: a name inside an included file is ignored, and without it Compose
+# uses the folder name (which differs per checkout and breaks volume names in docs).
+name: fairdrop
+
+include:
+  - path: infra/docker-compose.yml
+    project_directory: .

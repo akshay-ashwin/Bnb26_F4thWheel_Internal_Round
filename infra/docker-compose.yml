@@ -1,0 +1,166 @@
+# Fair Drop local stack. Included by the root compose.yaml (paths are relative to the repo root).
+#
+# Cross-OS rules (docs/PLATFORMS.md): source is bind-mounted for dev; node_modules, the Python
+# virtualenvs and Postgres data are NAMED VOLUMES (bind-mounted dependency trees are very slow
+# on Docker Desktop and fight with cloud-synced folders). File watching uses polling because
+# change events do not cross a Windows/macOS bind mount reliably.
+# The project name (fairdrop) is set in the root compose.yaml.
+
+services:
+  postgres:
+    image: postgres:16
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fairdrop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run "uv run fd secrets" first}
+      POSTGRES_DB: ${POSTGRES_DB:-fairdrop}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  redis:
+    image: redis:7
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  api:
+    build:
+      context: ./api
+    env_file:
+      - .env
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
+    # Dependencies are re-synced on start (a no-op when the venv volume is current), so a
+    # changed uv.lock never leaves a stale virtualenv behind.
+    command:
+      - sh
+      - -c
+      - >-
+        uv sync --frozen --no-install-project &&
+        if [ "$${API_RELOAD}" = "true" ];
+        then exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload;
+        else exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$${UVICORN_WORKERS:-4}";
+        fi
+    volumes:
+      - ./api:/app
+      - api-venv:/opt/venv
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${API_PORT:-8000}:8000"
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/healthz', timeout=3)"
+      interval: 5s
+      timeout: 4s
+      retries: 20
+      start_period: 20s
+
+  web:
+    build:
+      context: ./web
+      target: dev
+    command: ["sh", "-c", "pnpm install --frozen-lockfile && exec pnpm dev --host 0.0.0.0"]
+    volumes:
+      - ./web:/app
+      - web-node-modules:/app/node_modules
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-5173}:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:5173/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 4s
+      retries: 20
+      start_period: 20s
+
+  # Production-style web: static build + nginx with /api proxied to the api (same origin).
+  # Start with: docker compose --profile prod up -d web-prod
+  web-prod:
+    profiles: ["prod"]
+    build:
+      context: ./web
+      target: prod
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PROD_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  # Idle by default (profile "sim"); runs scenarios on demand: uv run fd sim ... (Plan 18).
+  # Gets only the two keys it legitimately needs, not the whole .env.
+  sim:
+    profiles: ["sim"]
+    build:
+      context: ./sim
+    environment:
+      API_BASE_URL: http://api:8000
+      ADMIN_KEY: ${ADMIN_KEY:-}
+      SIM_TELEMETRY_KEY: ${SIM_TELEMETRY_KEY:-}
+    volumes:
+      - ./sim:/app
+      - sim-venv:/opt/venv
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # One-shot migrations runner (Plan 02 fills it in): uv run fd migrate
+  migrate:
+    profiles: ["tools"]
+    image: ghcr.io/amacneil/dbmate:2
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-fairdrop}:${POSTGRES_PASSWORD:?run "uv run fd secrets" first}@postgres:5432/${POSTGRES_DB:-fairdrop}?sslmode=disable
+    volumes:
+      - ./api/migrations:/db/migrations
+    command: ["--help"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  api-venv:
+  sim-venv:
+  web-node-modules:
