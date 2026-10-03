@@ -1,0 +1,98 @@
+name: CI
+
+# Read-only on purpose: CI never posts comments, adds labels or uses any bot identity.
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Rule R1 backstop: hooks can be skipped locally (--no-verify), CI cannot.
+  attribution:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+      - name: Scan pull request commits
+        if: github.event_name == 'pull_request'
+        run: uv run fd attribution-check range "origin/${{ github.base_ref }}..HEAD"
+      - name: Scan pushed commits
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: uv run fd attribution-check range "${{ github.event.before }}..${{ github.sha }}"
+
+  # Docker-based jobs run on Linux only: GitHub's Windows and macOS runners cannot run Linux containers.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run fd secrets
+      - name: ruff, mypy, eslint, tsc, prettier and the no-CR check
+        run: uv run fd lint
+
+  api-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run fd secrets
+      # Compose starts Postgres and Redis (healthy) before the api container runs pytest.
+      - run: docker compose run --rm api pytest -q
+      - if: always()
+        run: docker compose down -v
+
+  web-tests:
+    runs-on: ubuntu-latest # Node 24 LTS runs inside the web image
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run fd secrets
+      - run: uv run fd test-web
+
+  stack-health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run fd secrets
+      - run: uv run fd up --build
+      - name: Same-origin health check through the web proxy
+        run: curl --fail --silent --show-error http://127.0.0.1:5173/api/healthz
+      - if: failure()
+        run: docker compose logs --no-color --tail=100
+      - if: always()
+        run: docker compose down -v
+
+  # Placeholder until Plan 14 makes it real (grep proves no decision module reads sim:* keys).
+  ground-truth-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "placeholder, implemented in Plan 14"
+
+  # Needs no Docker, so it runs on every OS we support: fd unit tests, the attribution-check
+  # patterns, the CR-byte lint, the real hook shims, and a native simulator smoke run.
+  host-os:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: fd tests
+        run: uv run python -m unittest discover -s tools/tests -t tools -v
+      - name: Native simulator smoke run (uvloop is not installed here)
+        run: uv run --project sim sim
+      - name: Simulator unit tests
+        run: uv run --project sim pytest -q
