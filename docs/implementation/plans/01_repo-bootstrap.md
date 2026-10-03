@@ -45,6 +45,7 @@ Out of scope: any business logic, schema (Plan 02), real endpoints (Plan 03 onwa
 4. Confirm free ports: 5432 (Postgres), 6379 (Redis), 8000 (API), 5173 (web dev), 8080 (web prod container). If occupied, choose alternatives and record them in `.env.example`. A port can also be unusable without anything listening on it: on Windows, Hyper-V/WSL reserve ranges (check with `netsh int ipv4 show excludedportrange protocol=tcp` in PowerShell); `fd doctor` tests by binding, which catches both cases on both OSes.
 5. If the repository folder is inside a cloud-synced location (OneDrive, iCloud Drive, Dropbox), keep heavy generated trees out of it: `node_modules`, Python virtualenvs and Postgres data go in Docker named volumes (see 4.4), never bind mounts. `fd doctor` warns when it detects such a location. Record the outcome in the review log.
 > Updated by D-001 (2026-10-04): cross-OS port and cloud-sync checks added.
+> Updated by Plan 01 execution (2026-10-04): the Postgres host port default is now **15432** (set in `.env.example` as the plan allows). A native PostgreSQL service owned 5432 on the first Windows machine and Docker failed to bind it. `fd doctor` reads the default ports from `.env.example` (one source of truth) and `.env` overrides them. The repo must also live outside cloud-synced folders: it was moved out of OneDrive before this plan ran.
 
 ## 4. Implementation steps
 
@@ -55,6 +56,7 @@ Create exactly this top level, each with a short README stating its purpose and 
 - `api/` — backend package (`api/app/` for code, `api/tests/`, `api/migrations/`)
 - `web/` — frontend (user app + dashboard in one Vite build)
 - `sim/` — simulator (`sim/clients/`, `sim/scenarios/`, `sim/runner`, `sim/evaluator`, `sim/out/` git-ignored)
+> Updated by Plan 01 execution (2026-10-04): the simulator uses a `src` layout, so those folders are subpackages at `sim/src/sim/clients/`, `sim/src/sim/scenarios/`, `sim/src/sim/runner/`, `sim/src/sim/evaluator/`; `sim/out/` stays at the project root. Reason: an importable package named `sim` next to the `sim/` project folder would be `sim/sim/`, and a `src` layout avoids importing from the working directory by accident.
 - `infra/` — compose file, Postgres config, Redis config, git hook shims (no other shell scripts)
 - `tools/fd/` + root `pyproject.toml` and `uv.lock` — the `uv run fd <task>` task CLI (4.7). Standard library only; never imports `api/` or `sim/`.
 - `compose.yaml` (repo root) — a real file that `include`s `infra/docker-compose.yml` (no symlinks anywhere in git; they need extra privileges on Windows)

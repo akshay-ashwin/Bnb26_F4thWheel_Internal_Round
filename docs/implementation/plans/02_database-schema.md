@@ -23,6 +23,7 @@ Standing rules that apply to every line of work in this plan:
 - **R4 — Review log.** Write `docs/review-logs/02-database-schema.md` in plain language from the template.
 
 > Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 24 LTS (D-002), macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+> Plan 01 handover (2026-10-04): `api/migrations/` exists (empty, `.gitkeep`). The `migrate` compose service is a stub in profile `tools` using `ghcr.io/amacneil/dbmate:2` (verified: dbmate 2.36.0) with `command: ["--help"]`; replace the command and wire `uv run fd migrate` / `reset-db` (currently print "not implemented yet (Plan 02)"). Its `DATABASE_URL` is built in `infra/docker-compose.yml` from the `POSTGRES_*` variables with `?sslmode=disable` (dbmate needs it). Postgres is reachable from the host on **15432** (remapped from 5432, which a local PostgreSQL often owns); inside the compose network it is `postgres:5432`. `reset-db` must remove the `fairdrop_pgdata` named volume (project name `fairdrop` is set in the root `compose.yaml`).
 
 ## 1. Goal
 
