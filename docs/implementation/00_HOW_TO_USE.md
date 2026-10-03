@@ -6,7 +6,7 @@ This pack turns the Fair Drop architecture document into 19 sequential, self-con
 
 | Path | Purpose |
 |---|---|
-| `CLAUDE.md` | Standing rules for Claude Code. Copy to the **repo root** — Claude Code loads it automatically every session. Contains the 8 invariants and rules R1–R4. |
+| (repo root) `CLAUDE.md` | Standing rules for Claude Code, loaded automatically every session. Contains the 8 invariants and rules R1–R4. It lives ONLY at the repo root; there is no copy in this folder, so the two cannot drift (human directive, 2026-10-04; see PLAN_CHANGELOG). |
 | `00_HOW_TO_USE.md` | This file. |
 | `PLAN_CHANGELOG.md` | Running log of every edit made to the plans after they were written (Rule R2). D-001 (stack decision) is the first entry. |
 | `templates/REVIEW_LOG_TEMPLATE.md` | The plain-language log Claude writes after every plan (Rule R4). |
@@ -17,9 +17,9 @@ This pack turns the Fair Drop architecture document into 19 sequential, self-con
 
 > Updated by D-001 (2026-10-04): prerequisites and the task runner changed. The project runs on macOS and Windows; see `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`.
 
-0. Install the only three host prerequisites: **git**, **Docker** (Compose v2; Docker Desktop on macOS and Windows, with Linux containers / the WSL2 backend on Windows), and **uv**. You do not need Python, Node or Make on the host: Python 3.12 and Node 22 LTS live inside the containers. Every task is `uv run fd <task>` (for example `uv run fd up`); where older text says `make X`, read `uv run fd X`.
+0. Install the only three host prerequisites: **git**, **Docker** (Compose v2; Docker Desktop on macOS and Windows, with Linux containers / the WSL2 backend on Windows), and **uv**. You do not need Python, Node or Make on the host: Python 3.12 and Node 24 LTS live inside the containers. Every task is `uv run fd <task>` (for example `uv run fd up`); where older text says `make X`, read `uv run fd X`.
 1. Create the empty repository (or use your existing one) and make sure `git config user.name` / `user.email` are YOUR identity.
-2. Copy `CLAUDE.md` to the repo root.
+2. Make sure `CLAUDE.md` is at the repo root (it is the only authoritative copy).
 3. Copy this whole folder to `docs/implementation/` in the repo (Plan 01 also tells Claude to do this; doing it yourself first is fine).
 4. Copy the original architecture document to `docs/design/Fair_Drop_Architecture.md`.
 5. Start Claude Code in the repo root.

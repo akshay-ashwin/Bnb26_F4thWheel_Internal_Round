@@ -24,9 +24,9 @@ If you believe one of these invariants is itself wrong, do NOT change it. Stop, 
 - Never add yourself (or "Claude", "Claude Code", "Anthropic", `noreply@anthropic.com`) as author, committer, co-author, or contributor anywhere.
 - No `Co-Authored-By:` trailers referencing Claude/Anthropic. No "Generated with Claude Code" or robot-emoji lines in commit messages, PR titles, PR bodies, release notes, tags, or code comments.
 - Never change `git config user.name` / `user.email`. Commits use the repository owner's existing identity only. If no identity is configured, stop and ask the human; do not invent one.
-- Disable Claude Code's own attribution in project settings during Plan 01 (in `.claude/settings.json`: the attribution/co-author setting — in current versions `includeCoAuthoredBy: false`, in newer versions the `attribution` setting with empty commit/PR text; check the installed version's settings docs or `/config` and use whichever applies). Also set it at user level if the human allows.
+- Disable Claude Code's own attribution in project settings during Plan 01 (`.claude/settings.json` sets `attribution` with empty `commit` and `pr` text and `sessionUrl: false`; the older `includeCoAuthoredBy: false` is deprecated but kept as a belt-and-braces second setting — verified against the Claude Code settings reference on 2026-10-04, installed version 2.1.288). Also set it at user level if the human allows. Even with these settings, a harness or skill may still suggest attribution lines: drop them.
 - Never invite collaborators, add bots, or change repository settings via `gh` or the GitHub API.
-- Plan 01 installs a commit-msg hook that rejects commits containing AI attribution. Never bypass it (`--no-verify` is forbidden).
+- Plan 01 installs hooks (`uv run fd hooks`) that reject commits and pushes containing AI attribution; patterns are in `docs/decisions/D-003-attribution-patterns.md`. They fail closed if `uv` is missing. Never bypass them (`--no-verify` is forbidden).
 - Before every push, inspect the commit messages and authors of all unpushed commits. If anything AI-attributed slipped in, amend/reword it before pushing and note it in the review log.
 
 ## Rule R2 — If you find a better solution, adopt it and rewrite the future
@@ -77,20 +77,20 @@ Full reasoning: `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`
 2. **Everything runs through Docker Compose.** The host needs only git, Docker (Compose v2; Docker Desktop in Linux-container mode on Windows) and uv. `api`, `web`, Postgres, Redis, migrations, tests, lint and formatters all run in containers. The one exception: the simulator may also run natively on Windows/macOS (`uv run --project sim sim ...`), so it must not require uvloop or any Unix-only API.
 3. **Tasks are `uv run fd <task>`, not Make.** Same names as the old Make targets (`up`, `down`, `logs`, `migrate`, `reset-db`, `test-api`, `test-web`, `lint`, `fmt`, `hooks`, `secrets`, `sim`, `eval`, `demo-reset`) plus `openapi` and `doctor`. Where a plan says `make X`, read `uv run fd X`. The CLI lives in `tools/fd/`, uses only the standard library, runs subprocesses with argument lists (never `shell=True`), and never imports `api/` or `sim/`.
 4. **Line endings are LF, always** (`.gitattributes` `eol=lf`, `.editorconfig`, `.env` written with LF, CR check in `fd lint`).
-5. **Versions:** Python 3.12 (in images), Node 22 LTS (in the `web` image; `engines >=22 <23`), PostgreSQL 16, Redis 7. Changing one needs a Deviation Record.
+5. **Versions:** Python 3.12 (in images), Node 24 LTS (in the `web` image; `engines >=24 <25`; D-002 superseded D-001's Node 22), PostgreSQL 16, Redis 7. Changing one needs a Deviation Record.
 6. **Skills:** the `fullstack-dev-skills` plugin's topical skills may be used as advice. Never use any `project:*` skill or `/project:*` command (the Jira ticket/epic/sprint workflow) and never the Atlassian integration. Precedence is CLAUDE.md, then the plans, then any skill. A skill's suggestion that conflicts with a plan or invariant is ignored, or adopted only through Rule R2 with a Deviation Record; it is never applied silently. Skills must not change how commits, PRs or attribution work (R1), write outside the repository map, or create content in external services.
 
 ## Repository map (created in Plan 01)
 
 - `api/` — FastAPI backend (Python 3.12, asyncpg, redis-py); runs only in a Linux container
-- `web/` — React + Vite + TypeScript + Tailwind + Recharts (user app and judge dashboard); Node 22 LTS in its container
+- `web/` — React + Vite + TypeScript + Tailwind + Recharts (user app and judge dashboard); Node 24 LTS in its container
 - `sim/` — attack simulator and evaluator (Python asyncio + httpx); runs in a container or natively on Windows/macOS
 - `tools/fd/` — the `uv run fd <task>` task CLI (root `pyproject.toml`, standard library only)
 - `infra/` — Docker Compose, Postgres/Redis config, migrations runner config, git hook shims
 - `docs/design/` — the original architecture document
 - `docs/contract/` — frozen API contract, JSON examples, OpenAPI snapshot
 - `docs/implementation/` — these plans, templates, PLAN_CHANGELOG.md
-- `docs/decisions/` — Deviation Records (D-xxx); D-001 is the stack decision above
+- `docs/decisions/` — Deviation Records (D-xxx); D-001 is the stack decision above, D-002 moves Node to 24 LTS, D-003 sets the attribution-check patterns
 - `docs/PLATFORMS.md` — per-OS setup and tuning notes (macOS / Windows)
 - `docs/review-logs/` — one plain-language log per plan
 

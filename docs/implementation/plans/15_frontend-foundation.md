@@ -22,7 +22,7 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/15-frontend-foundation.md` in plain language from the template.
 
-> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 24 LTS (D-002), macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
 
 ## 1. Goal
 
@@ -101,7 +101,7 @@ Tailwind theme: semantic colours (success, warning, danger, info, neutral), larg
 ### 4.13 Testing setup
 Vitest + Testing Library for units; Playwright for e2e (Plan 16/17 add specs) runnable against mocks and against the real stack.
 
-> Updated by D-001 (2026-10-04): everything runs in containers, so there is no host Node. Unit tests run in the `web` container (Node 22 LTS, `uv run fd test-web`). For e2e, add a compose service under profile `e2e` that runs Playwright with its browsers inside a Linux container on the compose network (`uv run fd test-web --e2e`), so the real-stack tests behave the same on macOS and Windows. Use Playwright's official image or `playwright install --with-deps` on the Node 22 `web` image; pin the Playwright version and record which route you chose (the official image's bundled Node version must be checked against Node 22). Test reports, traces and screenshots are written to a bind-mounted, git-ignored folder; curated screenshots go to `docs/screens/`. Dev-server file watching uses polling (Plan 01 §4.4).
+> Updated by D-001 (2026-10-04): everything runs in containers, so there is no host Node. Unit tests run in the `web` container (Node 22 LTS, `uv run fd test-web`). For e2e, add a compose service under profile `e2e` that runs Playwright with its browsers inside a Linux container on the compose network (`uv run fd test-web --e2e`), so the real-stack tests behave the same on macOS and Windows. Use Playwright's official image or `playwright install --with-deps` on the Node 22 `web` image; pin the Playwright version and record which route you chose (the official image's bundled Node version must be checked against Node 22). Test reports, traces and screenshots are written to a bind-mounted, git-ignored folder; curated screenshots go to `docs/screens/`. Dev-server file watching uses polling (Plan 01 §4.4). (Node later moved to 24 LTS by D-002.)
 
 ## 5. Tests
 

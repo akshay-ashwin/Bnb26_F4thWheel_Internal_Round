@@ -2,6 +2,8 @@
 
 Date: 2026-10-04  ·  Raised during: before Plan 01 (human-directed stack decision)  ·  Status: ADOPTED
 
+> Updated 2026-10-04: the Node version in this record (22 LTS) is superseded by D-002 (24 LTS). The rest of D-001 stands. The attribution hook patterns mentioned in section 1 are refined by D-003.
+
 ## The original plan said
 
 - Plan 01 §4.7 and many later plans (02, 03) use GNU Make targets: `make up`, `make migrate`, `make secrets`, `make hooks`, and so on. Plan 01 §4.6 asks for Python 3.12 and Node 20 on the host, and a pre-commit framework running host tools.

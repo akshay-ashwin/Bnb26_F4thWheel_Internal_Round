@@ -22,11 +22,11 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/01-repo-bootstrap.md` in plain language from the template.
 
-> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 24 LTS (D-002), macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
 
 ## 1. Goal
 
-Create a monorepo where one command (`uv run fd up`, which wraps `docker compose up`) brings up Postgres 16, Redis 7, an empty FastAPI service, an empty Vite web app (Node 22) and an idle simulator container, all healthy, identically on macOS and Windows; where AI attribution is technically impossible to commit; and where the shared interfaces are written down before anyone codes against them.
+Create a monorepo where one command (`uv run fd up`, which wraps `docker compose up`) brings up Postgres 16, Redis 7, an empty FastAPI service, an empty Vite web app (Node 24) and an idle simulator container, all healthy, identically on macOS and Windows; where AI attribution is technically impossible to commit; and where the shared interfaces are written down before anyone codes against them.
 
 > Updated by D-001 (2026-10-04): the goal now includes the `fd` task CLI and macOS + Windows parity.
 
@@ -38,8 +38,8 @@ Out of scope: any business logic, schema (Plan 02), real endpoints (Plan 03 onwa
 
 ## 3. Pre-flight checks
 
-1. `git --version`, `docker --version`, `docker compose version` (Compose v2, 2.20 or newer because the root `compose.yaml` uses `include`), `uv --version`. On Windows, Docker Desktop must be in Linux-container mode (WSL2 backend recommended). Nothing else is needed on the host: Python 3.12 lives in the `api`/`sim` images (uv provisions its own interpreter for the `fd` CLI) and Node 22 LTS lives in the `web` image. Once `fd` exists (4.7), `uv run fd doctor` performs this whole list and the port check below.
-> Updated by D-001 (2026-10-04): host prerequisites are git + Docker + uv only; Node 20 replaced by Node 22 LTS (in the container).
+1. `git --version`, `docker --version`, `docker compose version` (Compose v2, 2.20 or newer because the root `compose.yaml` uses `include`), `uv --version`. On Windows, Docker Desktop must be in Linux-container mode (WSL2 backend recommended). Nothing else is needed on the host: Python 3.12 lives in the `api`/`sim` images (uv provisions its own interpreter for the `fd` CLI) and Node 24 LTS lives in the `web` image. Once `fd` exists (4.7), `uv run fd doctor` performs this whole list and the port check below.
+> Updated by D-001 (2026-10-04): host prerequisites are git + Docker + uv only; Node 20 replaced by Node 22 LTS (in the container). (Node later moved to 24 LTS by D-002.)
 2. `git config user.name` and `git config user.email` return the repository owner's identity. If empty: STOP and ask the human. Never set them yourself.
 3. Confirm the target GitHub repo (if any) exists and the remote is the owner's. Do not create repos or change repo settings.
 4. Confirm free ports: 5432 (Postgres), 6379 (Redis), 8000 (API), 5173 (web dev), 8080 (web prod container). If occupied, choose alternatives and record them in `.env.example`. A port can also be unusable without anything listening on it: on Windows, Hyper-V/WSL reserve ranges (check with `netsh int ipv4 show excludedportrange protocol=tcp` in PowerShell); `fd doctor` tests by binding, which catches both cases on both OSes.
@@ -64,7 +64,8 @@ Create exactly this top level, each with a short README stating its purpose and 
 - `docs/implementation/` — copy this whole plans folder here: `plans/`, `templates/`, `PLAN_CHANGELOG.md`, `00_HOW_TO_USE.md`
 - `docs/decisions/` — empty, with a README explaining Deviation Records
 - `docs/review-logs/` — empty, with a README explaining the log purpose
-- `CLAUDE.md` at repo root (copy from this folder)
+- `CLAUDE.md` at repo root — the ONLY authoritative copy; do not create another under `docs/`
+> Updated by human directive (2026-10-04): the duplicate `docs/implementation/CLAUDE.md` was removed so the two copies cannot drift.
 
 ### 4.2 Git hygiene
 
@@ -82,6 +83,7 @@ Create exactly this top level, each with a short README stating its purpose and 
 3. Document in `docs/CONTRIBUTING.md`: how hooks are installed (`uv run fd hooks`), that `--no-verify` is forbidden, and the R1 rule in one paragraph.
 4. Test the hook: attempt a commit with a forbidden trailer in a throwaway branch, confirm rejection, delete the branch. Run this on every OS you have available (at least the one you are on) and record which OS in the review log. Unit-test the pattern matching in `tools/fd/` tests so it also runs on the Windows and macOS CI runners (4.10).
 > Updated by D-001 (2026-10-04): hooks are sh shims over a Python implementation; `make hooks` is `uv run fd hooks`; the pre-commit framework is dropped.
+> Updated by D-003 (2026-10-04): the literal pattern list in step 2 is replaced by the narrower, trailer-aware list in `docs/decisions/D-003-attribution-patterns.md` (trailers Co-Authored-By / Co-developed-by / Assisted-by / Reviewed-by naming claude or anthropic, `noreply@anthropic.com`, "generated with/by Claude", Claude Code URLs, robot emoji; broad claude/anthropic match kept for author and committer name/email), because the bare words `claude code` and `anthropic` reject legitimate commits about the tools. Hook shims fail closed when `uv` is missing (message points to `uv run fd doctor`). `fd attribution-check` also has a `range <revspec>` mode for CI.
 
 ### 4.4 Docker Compose (`infra/docker-compose.yml`, included by the real file `compose.yaml` at the repo root — no symlink)
 
@@ -91,7 +93,7 @@ Cross-OS rules for every service in this file:
 - Source code is bind-mounted for development; `node_modules`, the Python virtualenv / uv cache and Postgres data are **named volumes** (bind-mounted dependency trees are very slow on Docker Desktop and fight with OneDrive).
 - File-change events do not cross a Windows or macOS bind mount reliably, so dev mode sets Vite `server.watch.usePolling = true` and uvicorn `--reload` with `WATCHFILES_FORCE_POLLING=true`. Performance and demo runs start the API without reload.
 - All files copied into images (entrypoints, SQL, config) are LF by 4.2. Do not rely on `chmod` bits from the host: set them in the Dockerfile.
-- Images are multi-arch so Apple Silicon and x86 Windows both work: `python:3.12-slim`, `node:22-bookworm-slim` (Debian rather than Alpine so Playwright and native optional dependencies work), `postgres:16`, `redis:7`, dbmate's official image.
+- Images are multi-arch so Apple Silicon and x86 Windows both work: `python:3.12-slim`, `node:24-bookworm-slim` (Debian rather than Alpine so Playwright and native optional dependencies work), `postgres:16`, `redis:7`, dbmate's official image.
 
 Services:
 
@@ -100,7 +102,7 @@ Services:
 | `postgres` | `postgres:16` | Named volume; mounted custom `postgresql.conf` overrides: `max_connections` ≥ 200, `shared_buffers` ~25% of container RAM, `synchronous_commit=on` (never off — durability matters for integrity claims), `log_min_duration_statement` 200 ms for slow-query visibility, `lock_timeout` left default (set per-transaction in code) | `pg_isready` |
 | `redis` | `redis:7` | No persistence needed (`save ""`, `appendonly no`); `maxmemory` set (e.g. 512 MB) with `maxmemory-policy volatile-ttl` (decision: never `allkeys-lru`, which could evict rate-limit buckets or `jti` markers silently; every key we write has a TTL except `drop:{id}:remaining`, which is recomputable) | `redis-cli ping` |
 | `api` | build `api/` | Depends on healthy postgres + redis; env from `.env`; command runs uvicorn with `UVICORN_WORKERS` (default 4); exposes 8000; compose `ulimits: nofile` raised (e.g. 65535) | HTTP GET `/api/healthz` |
-| `web` | build `web/` | Node 22 LTS image. Dev: Vite dev server (polling file-watch) with proxy `/api` → `api:8000`. Prod profile: static build served by nginx with `/api` reverse-proxied to `api` (same origin, so cookies work without CORS) | HTTP GET `/` |
+| `web` | build `web/` | Node 24 LTS image. Dev: Vite dev server (polling file-watch) with proxy `/api` → `api:8000`. Prod profile: static build served by nginx with `/api` reverse-proxied to `api` (same origin, so cookies work without CORS) | HTTP GET `/` |
 | `sim` | build `sim/` | Idle by default (`profiles: ["sim"]`), runs scenarios on demand; compose `ulimits: nofile` raised; network access to `api`. The simulator can ALSO run natively on the host (Windows/macOS, Plan 18) against the published API port | none |
 
 Add a `migrate` one-shot service that runs migrations against postgres (Plan 02 fills it in); `uv run fd migrate` is its wrapper.
@@ -114,13 +116,13 @@ Startup safety rule (implemented in Plan 03): if `APP_ENV=prod` and `SIM_MODE=tr
 
 ### 4.6 Language tooling
 
-> Updated by D-001 (2026-10-04): uv is decided (not "uv or Poetry"); three uv projects; Node 22; tools run in containers; pre-commit framework replaced by hook shims.
+> Updated by D-001 (2026-10-04): uv is decided (not "uv or Poetry"); three uv projects; Node 22; tools run in containers; pre-commit framework replaced by hook shims. (Node later moved to 24 LTS by D-002.)
 
 - Python: **uv** (decided in D-001; lockfiles). Three separate uv projects: the root `fd` task CLI (`tools/fd/`), `api/`, and `sim/`. They must not share decision code — this physical separation is part of invariant 6. A tiny shared package is allowed ONLY for wire types (Pydantic request/response models) if needed; never for decision logic. Python 3.12 inside the `api` and `sim` images (`uv sync --frozen` at build).
 - `sim/pyproject.toml`: `uvloop` is an optional extra (`fast`, with the environment marker `sys_platform != 'win32'`), never a hard dependency, so the simulator installs and runs natively on Windows. The container image installs the extra. Details in Plan 18.
 - Lint/format: ruff (lint + format), mypy strict — run inside the project's container via `uv run fd lint` / `fmt`.
 - Tests: pytest, pytest-asyncio, httpx — run inside the `api` container via `uv run fd test-api` (Plan 03 §4.10).
-- Web: **Node 22 LTS** (`node:22-bookworm-slim`), `engines.node` `>=22 <23`, pnpm enabled with corepack and pinned in `packageManager` (decided; record in the review log), TypeScript strict, ESLint, Prettier — all executed in the `web` container. `pnpm` commands run via `docker compose exec web pnpm ...`; the host has no Node.
+- Web: **Node 24 LTS** (`node:24-bookworm-slim`), `engines.node` `>=24 <25`, pnpm enabled with corepack and pinned in `packageManager` (decided; record in the review log), TypeScript strict, ESLint, Prettier — all executed in the `web` container. `pnpm` commands run via `docker compose exec web pnpm ...`; the host has no Node.
 - No pre-commit framework (it would need host tools). The `pre-commit` git hook shim calls `uv run fd lint --staged` (4.3).
 
 ### 4.7 Task CLI: `uv run fd <task>` (replaces the Makefile; document each task in the root README)
@@ -143,7 +145,7 @@ Define once and use consistently: drop, phase, mode, identity, user, user_public
 
 ### 4.10 CI skeleton (`.github/workflows/ci.yml`)
 
-Jobs: lint (ruff, mypy, eslint, tsc), api tests (with Postgres + Redis service containers), web tests (Node 22), attribution scan of the PR's commits (`uv run fd attribution-check`), and a placeholder "ground-truth isolation" job (Plan 14 makes it real). CI must not post comments, add labels, or use any bot identity.
+Jobs: lint (ruff, mypy, eslint, tsc), api tests (with Postgres + Redis service containers), web tests (Node 24), attribution scan of the PR's commits (`uv run fd attribution-check range <base>..HEAD`, D-003), and a placeholder "ground-truth isolation" job (Plan 14 makes it real). CI must not post comments, add labels, or use any bot identity.
 
 > Updated by D-001 (2026-10-04): OS matrix. The Docker-based jobs above run on `ubuntu-latest` only (GitHub's Windows and macOS runners cannot run Linux containers). Add a second job on `windows-latest` and `macos-latest` that needs no Docker: `fd` CLI unit tests, attribution-check pattern tests, a CR-byte lint test, and (from Plan 18) the simulator's unit tests and native smoke run with uvloop absent.
 
@@ -168,11 +170,11 @@ Jobs: lint (ruff, mypy, eslint, tsc), api tests (with Postgres + Redis service c
 
 1. Fresh clone → `uv run fd doctor && uv run fd secrets && uv run fd up` → all services healthy within 60 s. Run it on every OS available to the team and record each (macOS and Windows are both required to be supported; if only one is available now, say so and leave the other as an open item for the first teammate who has it).
 2. An HTTP GET to `/api/healthz` via the web origin (through the proxy) returns ok — proves the same-origin path works. In Windows PowerShell 5.1, `curl` is an alias for `Invoke-WebRequest`; use `curl.exe` (ships with Windows 10/11) or `Invoke-RestMethod`. Document both forms in `docs/PLATFORMS.md`.
-3. Commit-msg hook rejects a message with a Claude co-author trailer; pre-push hook rejects a commit authored with an anthropic email (test on a throwaway local branch, then delete it).
+3. Commit-msg hook rejects a message with a Claude co-author trailer; pre-push hook rejects a commit authored with an anthropic email (test on a throwaway local branch, then delete it). Also confirm a missing `uv` blocks the hook with a message pointing to `uv run fd doctor`. `tools/tests` automates all of this against the real shims in a throwaway repository.
 4. CI workflow file passes a local lint (actionlint if available); the Windows/macOS job passes.
 5. `docs/contract/README.md`, `error-codes.md`, `GLOSSARY.md`, `CONTRIBUTING.md`, `PLATFORMS.md` exist and are complete.
 6. `git log` shows only the owner's identity.
-7. `git ls-files --eol` shows `i/lf w/lf` for every tracked text file, and `fd lint` reports no CR bytes. `docker compose exec web node --version` prints v22.x.
+7. `git ls-files --eol` shows `i/lf w/lf` for every tracked text file, and `fd lint` reports no CR bytes. `docker compose exec web node --version` prints v24.x.
 
 ## 7. Plan-update obligations
 
