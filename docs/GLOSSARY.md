@@ -18,6 +18,9 @@ One meaning per word. Use these names in code, docs, UI copy and review logs. If
 | **waitlist** | Entries drawn beyond the seat count, in draw-rank order. Promoted to an offer when an earlier offer expires or fails step-up. |
 | **allocation** | The permanent record that an entry holds a seat (`allocations`, append-only ledger). At most one per entry. |
 | **seat** | One physical row in `seats` (one row per seat, so 500 seats can never become 501). `free` or `sold`. |
+| **app role** | `fairdrop_app`, the restricted Postgres login the API uses (no DDL, append-only ledger, no direct seat or drop inserts). The superuser `POSTGRES_USER` owns the schema and runs migrations and test fixtures only. |
+| **integrity view** | `v_drop_integrity`: per drop, seat rows, sold, free, oversold and cross-table agreement between seats, ledger rows and ALLOCATED entries, computed by SQL on every read (never counters). `invariant_ok` is true only when everything agrees. |
+| **run (`run_no`)** | The attempt counter of a drop. Reset (`admin_reset_drop`) starts the next run; the previous one is kept in `drop_runs`. |
 | **admission token** | Short-lived signed token (HMAC-SHA256 JWT) shown to an entry with an offer; required to claim. Bound to the drop, the entry and the session. |
 | **jti** | The token's unique id. Marked used in Redis (fast path) and enforced by Postgres uniqueness (backstop), so a token works once. |
 | **idempotency key** | A UUID the client sends with state-changing calls (`Idempotency-Key`). Retrying with the same key returns the stored result instead of acting twice. |

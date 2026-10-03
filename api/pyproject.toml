@@ -39,9 +39,13 @@ strict = true
 files = ["app", "tests"]
 
 [[tool.mypy.overrides]]
+# asyncpg ships no type information.
 module = ["asyncpg", "asyncpg.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# One event loop for the whole session so session-scoped async fixtures (database setup) work.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]

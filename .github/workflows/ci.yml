@@ -45,8 +45,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
       - run: uv run fd secrets
-      # Compose starts Postgres and Redis (healthy) before the api container runs pytest.
-      - run: docker compose run --rm api pytest -q
+      # fd test-api starts Postgres, migrates fairdrop_test with the same dbmate files as the real
+      # database (D-005), then runs pytest in the api container.
+      - run: uv run fd test-api
       - if: always()
         run: docker compose down -v
 

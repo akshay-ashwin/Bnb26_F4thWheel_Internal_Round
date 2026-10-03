@@ -61,6 +61,8 @@ Inside one transaction (READ COMMITTED; `SET LOCAL lock_timeout = '1s'`, `SET LO
 8. If status = STEP_UP_REQUIRED → `423 STEP_UP_REQUIRED` (Fair only; harmless in FIFO).
 9. Mode checks: FIFO → drop phase must be OPEN and entry status REGISTERED, else SOLD_OUT if DONE / NOT_OFFERED otherwise. Fair → Plan 10 inserts the offer check here.
 10. Take a seat: one statement that updates the first free seat of the drop selected with ORDER BY seat_no, FOR UPDATE SKIP LOCKED, LIMIT 1, setting status sold, entry_id, sold_at; the outer update must ALSO re-check `status = 'free'` in its WHERE (defence in depth under READ COMMITTED re-evaluation). No row → `409 SOLD_OUT` (transaction rolls back; nothing written).
+
+> Updated by D-004 (2026-10-04) after Plan 02: the free-seat index is `(drop_id, seat_no) WHERE status = 'free'`, so the lowest-free-seat subquery is O(1) however many seats are sold (measured: 133 buffers against 19,899). Inside the claim transaction the order is forced by the foreign keys: update the seat row first, then insert the ledger row (`allocations_seat_entry_fk` needs the seat to already hold the entry). Set `allocations.run_no` (NOT NULL) and `sold_at` together with `status = 'sold'` (a CHECK ties them).
 11. Guarded entry update to ALLOCATED (`WHERE id = $1 AND status = <expected>`); if 0 rows → raise internal error and roll back (should be impossible because we hold the row lock; assert it).
 12. Insert allocation (drop_id, entry_id, seat_id, idempotency_key, run_no).
 13. Store the idempotency record (same connection).
@@ -85,6 +87,8 @@ A periodic task (leader-only; temporary per-process task with advisory lock unti
 
 ### 4.6 `GET /admin/drops/{id}/integrity`
 Reads `v_drop_integrity` for the drop: `{seats_total, sold, free, oversold, duplicate_entries_with_seats, invariant_ok}` plus the extra cross-table fields from Plan 02 under an `extra` object (contract addition — record it; harmless for clients). Must be computed by SQL every call (design: "not counters"). Cache at most 250 ms in-process to protect PG during dashboard polling.
+
+> Updated by D-004 (2026-10-04) after Plan 02: query it as `SELECT * FROM v_drop_integrity WHERE drop_id = $1`. The `extra` object carries `allocations_count`, `sold_without_allocation`, `allocation_without_sold_seat`, `entries_allocated_count`, `entries_allocated_mismatch`, `sold_seat_entry_not_allocated` and `free_seat_with_sold_at` (all of them must be 0 except the two counts, which must equal `sold`). Measured at 52,000 entries the view runs in about 1-2 ms server time, so the 250 ms in-process cache below is a safety margin, not a necessity.
 
 ## 5. Concurrency test suite (the heart of this plan)
 

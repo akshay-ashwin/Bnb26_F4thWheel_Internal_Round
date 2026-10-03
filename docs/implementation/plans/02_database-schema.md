@@ -64,7 +64,11 @@ Choose a plain-SQL migration runner (recommended: dbmate or yoyo, or Alembic use
 4. **entries** — as design, including the full status CHECK list (REGISTERED, OFFERED, STEP_UP_REQUIRED, WAITLISTED, NOT_SELECTED, OFFER_EXPIRED, ALLOCATED, DISQUALIFIED), `UNIQUE(drop_id, user_id)`, `UNIQUE(drop_id, draw_rank)`, the two indexes.
    Additions: `offered_at`, `allocated_at`, `step_up_passed_at`, `status_changed_at` timestamps; `run_no int` copied from drop at insert; `request_count int default 0` is NOT added (request counts belong to metrics/simulator, not the decision table).
 5. **seats** — exactly as design: bigserial id, drop_id, seat_no, status (free|sold), entry_id FK nullable, sold_at, `UNIQUE(drop_id, seat_no)`, `UNIQUE(drop_id, entry_id)`, `CHECK ((status='free') = (entry_id IS NULL))`, partial index on free seats. Note: Postgres treats NULLs as distinct in unique constraints, so many free seats with `entry_id NULL` are allowed — this is the desired behaviour; verify it in tests.
+
+> Updated by D-004 (2026-10-04): `seats` also carries `capacity` (FK `(drop_id, capacity)` to `drops(id, capacity)` plus `CHECK (seat_no BETWEEN 1 AND capacity)`), so more than `capacity` seat rows is impossible; `entry_id` is tied to the same drop by the composite FK `(entry_id, drop_id)` to `entries(id, drop_id)`; `sold_at` is set exactly when sold; the free-seat index is `(drop_id, seat_no) WHERE status = 'free'` (the claim orders by `seat_no`; measured, the design's `(drop_id)` index was never chosen and the claim walked 9,900 sold seats, see the Plan 02 review log). The NULL-distinct behaviour of `UNIQUE(drop_id, entry_id)` is kept on purpose and tested, including the index metadata (`indnullsnotdistinct = false`).
 6. **allocations** — append-only ledger as design: id, drop_id, entry_id UNIQUE FK, seat_id UNIQUE FK, idempotency_key, created_at. Addition: `run_no`. Add a trigger or revoke UPDATE/DELETE rights from the app role so the ledger is append-only during a run (reset is done by an admin-only routine that is allowed to clear it; see 4.6).
+
+> Updated by D-004 and D-005 (2026-10-04): `allocations` is tied to its entry and seat by composite FKs `(entry_id, drop_id)` and `(seat_id, entry_id)`, has an index on `drop_id`, and is append-only by two layers: the application role has only SELECT and INSERT, and a trigger refuses UPDATE always and DELETE/TRUNCATE outside `admin_reset_drop`.
 7. **idempotency_records** — as design, PK (user_id, key). Addition: `drop_id` column and index on `created_at` for cleanup.
 8. **abuse_events** — as design, with index (drop_id, ts).
 
@@ -78,20 +82,28 @@ New tables (additions, record each):
 
 A SQL function (or a documented statement used inside the drop-creation transaction) that inserts `capacity` rows with seat_no 1..capacity, status free. Must run in the SAME transaction as the drop insert so a drop can never exist without its seats. Also a "reset seats" routine used by Plan 06 reset.
 
+> Updated by D-004 (2026-10-04): as built, `create_drop(name, capacity, mode, window_s, claim_window_s, seed_commit, seed?, reg_opens_at?, reg_closes_at?)` creates the drop (phase `SCHEDULED`) and its seats in one call and returns the id. The application role has no INSERT right on `drops` or `seats`, so this function is the only way to create them. The reset routine is `admin_reset_drop` (section 4.6).
+
 ### 4.5 Integrity views (the live proof, design doc §11 `/integrity`)
 
 Create a view `v_drop_integrity` returning per drop: seats_total (count of seat rows), sold, free, capacity, oversold (= greatest(0, sold − capacity), and additionally a hard check that seats_total = capacity), duplicate_entries_with_seats (entries holding > 1 seat — must be 0 by constraint, still computed), allocations_count, sold_without_allocation (sold seats with no allocation row), allocation_without_sold_seat, entries_allocated_count, entries_allocated_mismatch (ALLOCATED entries vs allocations), and `invariant_ok` = all of the above are consistent. These cross-table checks matter: constraints already block duplicates, so the interesting failures are inconsistencies between seats, allocations and entry statuses.
 
 Make sure the view uses indexes and returns within ~10 ms at 52,000 entries / 500 seats (it is polled every second by the dashboard).
 
+> Updated by D-004 (2026-10-04): as built, the view reads `entries` exactly once (this drop's ALLOCATED entries, via the `(drop_id, status, draw_rank)` index) and answers every check from three small per-drop sets, so the cost follows the seat count, not the entry count. Required field names are unchanged; two extra fields exist for Plan 08's `extra` object: `sold_seat_entry_not_allocated` and `free_seat_with_sold_at`. A drop with no seat rows reads `invariant_ok = false`. Measured numbers are in the review log.
+
 ### 4.6 Roles and reset
 
 - App role: SELECT/INSERT/UPDATE on operational tables, INSERT-only on allocations and abuse_events, no DDL.
+
+> Updated by D-005 (2026-10-04): role `fairdrop_app`, narrow grants (no INSERT on `drops`/`seats`, column-level UPDATE, no DELETE except idempotency cleanup), the reset flag is a transaction-local setting checked together with the caller's identity, and `create_drop` / `admin_reset_drop` are `SECURITY DEFINER` with a pinned `search_path` and `EXECUTE` revoked from PUBLIC. `admin_reset_drop(drop_id)` returns the new `run_no` and also clears `drawn_at`, `closed_at`, `done_at` and `entry_set_hash`; it leaves `phase`, `mode`, the seed fields, users, sessions and `drop_runs` alone.
 - A `SECURITY DEFINER` function `admin_reset_drop(drop_id)` (or an admin-role connection used only by the reset path) that, in one transaction: deletes allocations for the drop, frees all seats, deletes entries, deletes idempotency records for the drop, increments run_no. Seed regeneration happens in application code (Plan 06) because the seed must come from a CSPRNG in the app.
 
 ### 4.7 Seed data for development
 
 A dev-only seed script description: create one demo drop "Fair Drop Demo" capacity 500 mode fifo in SCHEDULED. Plan 06 replaces this with the admin API.
+
+> Updated by D-005 (2026-10-04): as built, `api/seeds/dev_demo_drop.sql` (run with `docker compose exec -T postgres psql ... < ...` or the command in `api/README.md`) calls `create_drop`. It is not a migration, so the test database never gets a demo drop.
 
 ## 5. Constraint tests (write them now; they run in CI)
 
@@ -107,6 +119,8 @@ Using pytest against the real Postgres:
 8. Drop + seats creation is atomic: simulate failure mid-transaction → no drop and no seats remain.
 9. `v_drop_integrity` returns invariant_ok = true on an empty drop, on a fully sold drop, and correctly flags an artificially inserted inconsistency (inserted by a superuser connection in the test).
 10. Performance: with 52,000 synthetic entries and 500 sold seats, the integrity view runs < 20 ms (record actual).
+
+> Updated by D-005 (2026-10-04): the constraint tests run with `uv run fd test-api`, which migrates `fairdrop_test` with the same dbmate files as the real database before pytest starts. Test 10 asserts the plan shape (no sequential scan of `entries`) and a loose 100 ms regression ceiling; the real numbers (p50/p95/max over 50 runs per state) are printed and recorded in the review log, not asserted at 10 ms.
 
 ## 6. Decisions you must make and record
 

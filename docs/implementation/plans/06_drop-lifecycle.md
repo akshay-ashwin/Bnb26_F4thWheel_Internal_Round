@@ -73,6 +73,8 @@ Every transition is one guarded update (`… WHERE id = $1 AND phase = $expected
 2. Generate `seed` = 32 bytes from the OS CSPRNG; store as lowercase hex.
 3. `seed_commit = SHA-256(raw 32 seed bytes)` lowercase hex. Write the exact definition into the GLOSSARY and `docs/contract/draw.md` (Plan 09 and the browser verifier depend on byte-exact definitions).
 4. One transaction: insert drop (phase SCHEDULED, run_no 1) + generate seats.
+
+> Updated by D-004 and D-005 (2026-10-04) after Plan 02: call the SQL function `create_drop(name, capacity, mode, window_s, claim_window_s, seed_commit, seed, ...)`; the application role cannot INSERT into `drops` or `seats`. The function stores `seed` from creation (this plan's honesty note stands) and returns the id. `capacity` can never change afterwards (the seats' foreign key forbids it), so a different size means a new drop.
 5. Initialise Redis `drop:{id}:remaining = capacity`.
 6. Respond `201 {drop_id, seed_commit}`.
 
@@ -99,6 +101,8 @@ Contract extension (record as D-record + CONTRACT CHANGE banner): the phase body
 Reset steps (one transaction where possible):
 1. Snapshot the finished run into `drop_runs` (mode, started/ended, a metrics summary pulled from Plan 14's summarizer once it exists — until then store counts by entry status and integrity view row).
 2. Call `admin_reset_drop` (clears allocations, frees seats, deletes entries and idempotency records, increments run_no).
+
+> Updated by D-005 (2026-10-04) after Plan 02: `SELECT admin_reset_drop($1)` returns the new `run_no` and also clears `drawn_at`, `closed_at`, `done_at` and `entry_set_hash`. It does NOT touch `phase`, `mode`, `seed_commit` or `seed`: set those afterwards with a normal UPDATE (the application role may update `mode`, `phase`, `seed_commit`, `seed` and the timestamps, but never `capacity` or `run_no`). Archive the finished run into `drop_runs` BEFORE calling it (the application may INSERT there and later UPDATE `ended_at`, `summary`, `scorecard`).
 3. New seed + seed_commit; clear seed reveal, entry_set_hash, timestamps; phase SCHEDULED; apply mode if supplied.
 4. After commit: bump the per-drop `/me` cache version `drop:{id}:me_ver` (Plan 07; O(1) invalidation of every cached status), delete `drop:{id}:*` keys other than `me_ver`, `idem:reg:*` is user-scoped and harmless to leave; cluster sets `cl:*` scoped to the drop; `jti:*` harmless); reset `remaining`. Do NOT delete `sim:*` or metrics history (metrics are keyed by drop and timestamp; include run_no in the metrics summary so charts can split runs).
 5. Sessions and users survive reset (humans don't re-verify between demo runs). The simulator decides whether to reuse identities.
