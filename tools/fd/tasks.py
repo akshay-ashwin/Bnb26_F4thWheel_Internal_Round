@@ -113,8 +113,9 @@ def reset_db() -> int:
 def test_api(pytest_args: list[str]) -> int:
     """Migrate fairdrop_test with the same files as the real database, then run pytest.
 
-    The api container gets two URLs: TEST_DATABASE_URL (owner role, for fixtures and fault
-    injection) and TEST_APP_DATABASE_URL (the restricted fairdrop_app role, what the api uses).
+    Redis (database index 15) is started too. The api container gets three URLs:
+    TEST_DATABASE_URL (owner role, for fixtures and fault injection), TEST_APP_DATABASE_URL (the
+    restricted fairdrop_app role, what the api uses) and TEST_REDIS_URL.
     """
     if not _require_env():
         return 1
@@ -123,18 +124,22 @@ def test_api(pytest_args: list[str]) -> int:
     code = _migrate_database(TEST_DB, dump_schema=False)
     if code:
         return code
+    if _compose("up", "-d", "--wait", "redis"):
+        return 1
     values = _env_values()
     user, password = values["POSTGRES_USER"], values["POSTGRES_PASSWORD"]
     app_password = values["APP_DB_PASSWORD"]
     env = {
         "TEST_DATABASE_URL": f"postgresql://{user}:{password}@postgres:5432/{TEST_DB}",
         "TEST_APP_DATABASE_URL": f"postgresql://{APP_ROLE}:{app_password}@postgres:5432/{TEST_DB}",
+        # Redis DB index 15 is reserved for tests (the app uses 0); tests flush it freely.
+        "TEST_REDIS_URL": "redis://redis:6379/15",
     }
     # Same sync-then-run shape as the api service command; "$@" carries the pytest arguments.
     script = 'uv sync --frozen --no-install-project && exec pytest "$@"'
     return repo.run_live(
         ["docker", "compose", "run", "--rm", "--no-deps"]
-        + ["-e", "TEST_DATABASE_URL", "-e", "TEST_APP_DATABASE_URL"]
+        + ["-e", "TEST_DATABASE_URL", "-e", "TEST_APP_DATABASE_URL", "-e", "TEST_REDIS_URL"]
         + ["api", "sh", "-c", script, "pytest", *pytest_args],
         env=env,
     )

@@ -16,7 +16,13 @@ from collections.abc import AsyncIterator
 from urllib.parse import urlparse
 
 import asyncpg
+import httpx
 import pytest
+from fastapi import FastAPI
+
+from app.config import Settings
+from app.main import create_app
+from app.services.drops import public_cache
 
 TABLES = (
     "allocations, seats, entries, sessions, idempotency_records, abuse_events, "
@@ -66,3 +72,55 @@ async def app_db(app_url: str, db: asyncpg.Connection) -> AsyncIterator[asyncpg.
         yield conn
     finally:
         await conn.close()
+
+
+# --- application fixtures (real Postgres through the restricted role, real Redis db 15) ---
+
+
+@pytest.fixture(scope="session")
+def redis_url() -> str:
+    url = os.environ.get("TEST_REDIS_URL")
+    if not url:
+        pytest.exit("TEST_REDIS_URL is not set: run the tests with `uv run fd test-api`", 2)
+    if not url.rstrip("/").endswith("/15"):
+        pytest.exit("refusing to run: TEST_REDIS_URL must use database index 15", 2)
+    return url
+
+
+@pytest.fixture(scope="session")
+def settings(app_url: str, redis_url: str) -> Settings:
+    env = dict(os.environ)
+    env.update(
+        DATABASE_URL=app_url,
+        REDIS_URL=redis_url,
+        SIM_MODE="true",
+        APP_ENV="dev",
+        DRAW_GRACE_S="0",
+        RUN_JOBS="false",
+        REDIS_TIMEOUT_MS="500",
+    )
+    return Settings.from_env(env)
+
+
+@pytest.fixture(scope="session")
+async def app(settings: Settings) -> AsyncIterator[FastAPI]:
+    application = create_app(settings)
+    async with application.router.lifespan_context(application):
+        yield application
+
+
+@pytest.fixture
+async def clean(db: asyncpg.Connection, app: FastAPI) -> AsyncIterator[None]:
+    """Empty tables (via `db`) and an empty test Redis database."""
+    app.state.metrics.reset()
+    await app.state.cache.client.flushdb()
+    app.state.metrics.reset()
+    public_cache.clear()
+    yield
+
+
+@pytest.fixture
+async def client(app: FastAPI, clean: None) -> AsyncIterator[httpx.AsyncClient]:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c

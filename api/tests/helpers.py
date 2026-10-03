@@ -86,3 +86,13 @@ async def claim(conn: asyncpg.Connection, drop_id: uuid.UUID) -> uuid.UUID:
         )
         await allocate(conn, drop_id, entry_id, seat_id)
     return entry_id
+
+
+async def open_drop(conn: asyncpg.Connection, drop_id: uuid.UUID, *, window_s: int = 300) -> None:
+    """Move a SCHEDULED drop to OPEN with a registration window (what the admin `open` does)."""
+    await conn.execute(
+        "UPDATE drops SET phase = 'OPEN', reg_opens_at = now(),"
+        " reg_closes_at = now() + make_interval(secs => $2) WHERE id = $1",
+        drop_id,
+        float(window_s),
+    )
