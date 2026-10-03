@@ -48,6 +48,21 @@ class CrCheck(unittest.TestCase):
         self.assertEqual(find_cr_files(repo.repo_root(), staged=False), [])
 
 
+class DoctorPorts(unittest.TestCase):
+    def test_ports_come_from_env_example_and_env_overrides(self) -> None:
+        from fd.doctor import PORT_VARIABLES, configured_ports
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".env.example").write_bytes((repo.repo_root() / ".env.example").read_bytes())
+            defaults = configured_ports(root)  # no .env yet: the fresh-clone case
+            self.assertEqual(set(defaults), set(PORT_VARIABLES))
+            self.assertEqual(defaults["POSTGRES_PORT"], 15432)
+            (root / ".env").write_text("API_PORT=18000\n", encoding="utf-8", newline="\n")
+            self.assertEqual(configured_ports(root)["API_PORT"], 18000)
+            self.assertEqual(configured_ports(root)["POSTGRES_PORT"], 15432)
+
+
 class SecretsGenerator(unittest.TestCase):
     def test_env_example_parses_and_secrets_are_marked(self) -> None:
         text = (repo.repo_root() / ".env.example").read_text(encoding="utf-8")

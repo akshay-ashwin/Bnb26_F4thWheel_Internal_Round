@@ -4,16 +4,13 @@ from __future__ import annotations
 
 import re
 import socket
+from pathlib import Path
 
 from fd import console, envfile, repo
 
-DEFAULT_PORTS: dict[str, int] = {
-    "POSTGRES_PORT": 5432,
-    "REDIS_PORT": 6379,
-    "API_PORT": 8000,
-    "WEB_PORT": 5173,
-    "WEB_PROD_PORT": 8080,
-}
+# Which variables are host ports. Their DEFAULT values live only in .env.example (one source of
+# truth); .env overrides them.
+PORT_VARIABLES = ("POSTGRES_PORT", "REDIS_PORT", "API_PORT", "WEB_PORT", "WEB_PROD_PORT")
 _SYNC_MARKERS = ("onedrive", "icloud", "dropbox", "google drive", "mobile documents")
 _MIN_COMPOSE = (2, 20)
 
@@ -24,6 +21,12 @@ def _version_line(args: list[str]) -> str | None:
     except FileNotFoundError:
         return None
     return proc.stdout.strip().splitlines()[0] if proc.returncode == 0 and proc.stdout else None
+
+
+def configured_ports(root: Path) -> dict[str, int]:
+    """Host ports to test: .env.example defaults, overridden by .env when it exists."""
+    values = {**envfile.read_values(root / ".env.example"), **envfile.read_values(root / ".env")}
+    return {key: int(values[key]) for key in PORT_VARIABLES}
 
 
 def _port_is_free(port: int) -> bool:
@@ -99,10 +102,8 @@ def run() -> int:
         console.warn("git hooks not installed: run `uv run fd hooks`")
 
     # 4. Ports (skipped when our own stack is already holding them)
-    values = {**{k: str(v) for k, v in DEFAULT_PORTS.items()}, **envfile.read_values(root / ".env")}
     ours = _published_by_stack() if daemon_ok else ""
-    for key in DEFAULT_PORTS:
-        port = int(values[key])
+    for key, port in configured_ports(root).items():
         if _port_is_free(port):
             console.ok(f"port {port} ({key}) is free")
         elif f":{port}->" in ours:
