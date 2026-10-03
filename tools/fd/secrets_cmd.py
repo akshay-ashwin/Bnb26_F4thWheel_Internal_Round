@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import secrets
+from pathlib import Path
 
 from fd import console, envfile, repo
 
 
-def generate(*, force: bool) -> int:
-    root = repo.repo_root()
+def generate(*, force: bool, root: Path | None = None) -> int:
+    root = root or repo.repo_root()
     example = root / ".env.example"
     target = root / ".env"
     if not example.is_file():

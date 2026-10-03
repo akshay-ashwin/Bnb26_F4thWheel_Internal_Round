@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import socket
-from pathlib import Path
 
 from fd import console, envfile, repo
 
@@ -37,9 +36,10 @@ def _port_is_free(port: int) -> bool:
     return True
 
 
-def _compose_running() -> bool:
-    proc = repo.run(["docker", "compose", "ps", "-q"])
-    return proc.returncode == 0 and bool(proc.stdout.strip())
+def _published_by_stack() -> str:
+    """Host ports our own running containers publish ('0.0.0.0:8000->8000/tcp, ...')."""
+    proc = repo.run(["docker", "compose", "ps", "--format", "{{.Ports}}"])
+    return proc.stdout if proc.returncode == 0 else ""
 
 
 def run() -> int:
@@ -64,8 +64,14 @@ def run() -> int:
 
     compose_v = _version_line(["docker", "compose", "version", "--short"])
     parsed = re.match(r"v?(\d+)\.(\d+)", compose_v or "")
-    compose_ok = bool(parsed) and (int(parsed.group(1)), int(parsed.group(2))) >= _MIN_COMPOSE  # type: ignore[union-attr]
-    need(compose_ok, f"docker compose {compose_v}", f"Compose v2 >= 2.20 required (found {compose_v})")
+    compose_ok = parsed is not None and (
+        (int(parsed.group(1)), int(parsed.group(2))) >= _MIN_COMPOSE
+    )
+    need(
+        compose_ok,
+        f"docker compose {compose_v}",
+        f"Compose v2 >= 2.20 required (found {compose_v})",
+    )
 
     # 2. Docker daemon in Linux-container mode
     info = repo.run(["docker", "info", "--format", "{{.OSType}}"]) if docker_v else None
@@ -81,7 +87,11 @@ def run() -> int:
     # 3. Git identity and hooks
     name = repo.git("config", "--get", "user.name").stdout.strip()
     email = repo.git("config", "--get", "user.email").stdout.strip()
-    need(bool(name and email), f"git identity: {name} <{email}>", "git user.name/user.email not set (ask the repo owner)")
+    need(
+        bool(name and email),
+        f"git identity: {name} <{email}>",
+        "git user.name/user.email not set (ask the repo owner; do not invent one)",
+    )
     hooks = repo.git("config", "--get", "core.hooksPath").stdout.strip()
     if hooks == "infra/git-hooks":
         console.ok("git hooks installed (core.hooksPath = infra/git-hooks)")
@@ -90,15 +100,17 @@ def run() -> int:
 
     # 4. Ports (skipped when our own stack is already holding them)
     values = {**{k: str(v) for k, v in DEFAULT_PORTS.items()}, **envfile.read_values(root / ".env")}
-    stack_up = daemon_ok and _compose_running()
+    ours = _published_by_stack() if daemon_ok else ""
     for key in DEFAULT_PORTS:
         port = int(values[key])
-        if stack_up:
-            console.info(f"port {port} ({key}) not tested: the stack is running")
+        if _port_is_free(port):
+            console.ok(f"port {port} ({key}) is free")
+        elif f":{port}->" in ours:
+            console.ok(f"port {port} ({key}) is in use by this stack")
         else:
             need(
-                _port_is_free(port),
-                f"port {port} ({key}) is free",
+                False,
+                "",
                 f"port {port} ({key}) cannot be bound (in use or OS-reserved); "
                 f"pick another in .env ({key}=...)",
             )
@@ -116,12 +128,14 @@ def run() -> int:
     # 6. .env sanity
     env_path = root / ".env"
     if env_path.is_file():
-        need(b"\r" not in env_path.read_bytes(), ".env has LF endings", ".env contains CR bytes; regenerate with `uv run fd secrets --force`")
+        need(
+            b"\r" not in env_path.read_bytes(),
+            ".env has LF endings",
+            ".env contains CR bytes; regenerate with `uv run fd secrets --force`",
+        )
     else:
         console.warn(".env missing: run `uv run fd secrets`")
 
-    console.info("doctor finished: " + ("all required checks passed" if problems == 0 else f"{problems} problem(s)"))
+    summary = "all required checks passed" if problems == 0 else f"{problems} problem(s)"
+    console.info(f"doctor finished: {summary}")
     return 1 if problems else 0
-
-
-__all__ = ["Path", "run"]

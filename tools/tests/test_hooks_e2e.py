@@ -17,15 +17,29 @@ from pathlib import Path
 from fd import repo
 
 HOOKS = repo.repo_root() / "infra" / "git-hooks"
-OWNER = {"GIT_AUTHOR_NAME": "Owner", "GIT_AUTHOR_EMAIL": "owner@example.com",
-         "GIT_COMMITTER_NAME": "Owner", "GIT_COMMITTER_EMAIL": "owner@example.com"}
+OWNER = {
+    "GIT_AUTHOR_NAME": "Owner",
+    "GIT_AUTHOR_EMAIL": "owner@example.com",
+    "GIT_COMMITTER_NAME": "Owner",
+    "GIT_COMMITTER_EMAIL": "owner@example.com",
+}
 
 
-def _git(cwd: Path, *args: str, env: dict[str, str] | None = None, stdin: str | None = None,
-         ) -> subprocess.CompletedProcess[str]:
+def _git(
+    cwd: Path,
+    *args: str,
+    env: dict[str, str] | None = None,
+    stdin: str | None = None,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["git", *args], cwd=cwd, input=stdin, capture_output=True, text=True,
-        encoding="utf-8", errors="replace", check=False,
+        ["git", *args],
+        cwd=cwd,
+        input=stdin,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
         env={**os.environ, **(env or {})},
     )
 
@@ -43,7 +57,9 @@ class HookShims(unittest.TestCase):
         (self.repo / "a.txt").write_text("hello\n", encoding="utf-8", newline="\n")
         _git(self.repo, "add", "a.txt")
 
-    def commit(self, message: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    def commit(
+        self, message: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
         return _git(self.repo, "commit", "-m", message, env=env)
 
     def test_clean_commit_passes(self) -> None:
@@ -71,7 +87,12 @@ class HookShims(unittest.TestCase):
         stdin = f"refs/heads/main {sha} refs/heads/main {'0' * 40}\n"
         proc = subprocess.run(
             ["sh", (HOOKS / "pre-push").as_posix(), "origin", "https://example.invalid/x.git"],
-            cwd=self.repo, input=stdin, capture_output=True, text=True, encoding="utf-8", check=False,
+            cwd=self.repo,
+            input=stdin,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
         )
         self.assertNotEqual(proc.returncode, 0, proc.stdout)
         self.assertIn("REJECTED", proc.stderr)
@@ -84,8 +105,12 @@ class HookShims(unittest.TestCase):
         msg.write_text("feat: x\n", encoding="utf-8", newline="\n")
         proc = subprocess.run(
             [sh, (HOOKS / "commit-msg").as_posix(), msg.as_posix()],
-            cwd=self.repo, capture_output=True, text=True, encoding="utf-8", check=False,
-            env={"PATH": str(Path(sh).parent) if os.name != "nt" else str(Path(sh).parent)},
+            cwd=self.repo,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=False,
+            env={"PATH": str(Path(sh).parent)},  # sh and coreutils only: no uv on PATH
         )
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("uv run fd doctor", proc.stderr)

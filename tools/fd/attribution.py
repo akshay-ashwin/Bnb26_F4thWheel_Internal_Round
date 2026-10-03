@@ -35,9 +35,7 @@ MESSAGE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
     (
         "Claude Code URL",
-        re.compile(
-            r"(?:claude\.com|anthropic\.com)/claude-code|claude\.ai/code", re.IGNORECASE
-        ),
+        re.compile(r"(?:claude\.com|anthropic\.com)/claude-code|claude\.ai/code", re.IGNORECASE),
     ),
     ("robot emoji", re.compile("\U0001f916")),
 )
