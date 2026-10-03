@@ -26,8 +26,9 @@ Then open http://127.0.0.1:5173 (web) and http://127.0.0.1:5173/api/healthz (API
 | `up [--build]` | `docker compose up -d --wait` (needs `.env`) |
 | `down` | stop the stack; named volumes (database, node_modules, venvs) are kept |
 | `logs [service]` | follow container logs |
-| `migrate`, `reset-db` | database migrations and reset (Plan 02) |
-| `test-api` | api tests in the container (Plan 03) |
+| `migrate` | apply `api/migrations` (idempotent), set the `fairdrop_app` password, dump `api/migrations/schema.sql` |
+| `reset-db` | remove the Postgres volume and migrate again |
+| `test-api` | migrate `fairdrop_test`, then run the api tests in the container (extra pytest arguments after `--`) |
 | `test-web [--e2e]` | web tests in the container (`--e2e` adds Playwright, Plan 15) |
 | `lint [--staged]` | no-CR check, then ruff, mypy, eslint, tsc and prettier on host tools and in containers. `--staged` runs only the fast no-CR check |
 | `fmt` | ruff format and prettier |

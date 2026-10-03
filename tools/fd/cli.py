@@ -21,9 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
     logs = sub.add_parser("logs", help="follow container logs")
     logs.add_argument("service", nargs="?", help="limit to one service")
 
-    sub.add_parser("migrate", help="run database migrations (Plan 02)")
-    sub.add_parser("reset-db", help="drop the Postgres volume and re-migrate (Plan 02)")
-    sub.add_parser("test-api", help="run api tests in the container (Plan 03)")
+    sub.add_parser("migrate", help="apply database migrations, dump schema.sql (idempotent)")
+    sub.add_parser("reset-db", help="drop the Postgres volume and re-migrate")
+    ta = sub.add_parser(
+        "test-api", help="migrate fairdrop_test, then run api pytest in the container"
+    )
+    ta.add_argument("pytest_args", nargs="*", help="extra pytest arguments (put -- before options)")
     tw = sub.add_parser("test-web", help="run web tests in the container")
     tw.add_argument("--e2e", action="store_true", help="also run Playwright (Plan 15)")
 
@@ -93,6 +96,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return tasks.down()
     if task == "logs":
         return tasks.logs(args.service)
+    if task == "migrate":
+        return tasks.migrate()
+    if task == "reset-db":
+        return tasks.reset_db()
+    if task == "test-api":
+        return tasks.test_api(args.pytest_args)
     if task == "test-web":
         return tasks.test_web(e2e=args.e2e)
     if task == "lint":

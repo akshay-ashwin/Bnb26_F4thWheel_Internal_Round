@@ -8,6 +8,8 @@
 | Unlocks | Plans 10, 11, 17 (draw-verify button), 19 (fairness evaluation) |
 | Target time | 2.5 hours |
 
+> Updated by D-005 (2026-10-04) after Plan 02: `entries.draw_rank` has `CHECK (draw_rank >= 1)` and is unique per drop (NULLs allowed before the draw), so ranks are 1-based. The application role may update `draw_rank`, `status`, `offer_expires_at`, `offered_at` and `status_changed_at` on entries, and `drops.seed`, `drops.entry_set_hash`, `drops.phase`, `drops.drawn_at`; it cannot delete entries.
+
 ## 0. Mandatory operating protocol (read before writing anything)
 
 1. Read `CLAUDE.md` (repo root) — it overrides this plan if they conflict.

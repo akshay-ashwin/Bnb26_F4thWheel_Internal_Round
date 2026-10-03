@@ -9,5 +9,7 @@ Write one with `docs/implementation/templates/DEVIATION_RECORD_TEMPLATE.md`. Tak
 | D-001 | Cross-platform stack: Docker-only runtime, `uv run fd` instead of Make, LF everywhere, skills policy |
 | D-002 | Node 24 LTS instead of Node 22 LTS |
 | D-003 | Narrower, trailer-aware attribution patterns; hooks fail closed |
+| D-004 | Structural seat cap (`seats.capacity` FK + CHECK) and cross-drop composite keys |
+| D-005 | Restricted `fairdrop_app` database role; one migration path for the real and test databases |
 
 No record may weaken the eight invariants in `CLAUDE.md`. If you think an invariant is wrong, stop and ask a human.

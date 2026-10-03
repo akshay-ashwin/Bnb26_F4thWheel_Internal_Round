@@ -51,6 +51,8 @@ Out of scope: admission token minting (Plan 10 plugs into `/me`), offers/draw (P
 9. Store Redis idempotency record if a key was provided.
 10. Set `client_ip`, `device_id`, `run_no` on the entry.
 
+> Updated by D-005 (2026-10-04) after Plan 02: `entries.run_no` is NOT NULL with no default, so the insert must supply the drop's current `run_no`. The application role cannot DELETE entries and may UPDATE only `status`, `risk_score`, `risk_flags`, `draw_rank`, `offer_expires_at`, `offered_at`, `allocated_at`, `step_up_passed_at` and `status_changed_at`; `status_changed_at` has a default but guarded updates must set it themselves. `(drop_id, user_id)` is unique, so a retried registration is a unique violation to catch, not a second row.
+
 Arrival timestamp `entered_at` is recorded for evidence (the Spearman metric) but is NEVER read by Fair-mode decision code. Add a code comment + a test (Plan 09) proving the draw doesn't use it.
 
 ### 4.2 Performance target
