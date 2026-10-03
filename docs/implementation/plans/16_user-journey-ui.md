@@ -22,6 +22,8 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/16-user-journey-ui.md` in plain language from the template.
 
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+
 ## 1. Goal
 
 One screen, driven entirely by `GET /me` and `GET /drops/{id}`, that renders exactly one clear state at a time, never lies about what is happening, keeps working through refresh/reconnect/multi-tab, and makes the fairness promise visible to ordinary users ("arriving early doesn't help", the seed commitment).
@@ -83,6 +85,8 @@ Map every code from `docs/contract/error-codes.md` to: which state/overlay, the 
 Plain-language explanation of commit → enter → reveal → rank, with the formula in one line, a link to verify once the seed is revealed (the public proof), and the statement "Your chance is the same no matter when you entered in the window."
 
 ## 8. E2E tests (Playwright, against the real stack in Fair mode via an admin helper)
+
+> Updated by D-001 (2026-10-04): run with `uv run fd test-web --e2e` (Playwright in a container on the compose network, Plan 15 §4.13), so results are the same on macOS and Windows. Network-emulation tests (offline during confirm) use Playwright's own emulation, not host tools. Screenshots saved to `docs/screens/` come from the bind mount; they must be PNG with no OS-specific chrome.
 
 1. Happy path: verify → enter → (admin close + draw) → offered → confirm → allocated.
 2. Refresh at every state → same screen.

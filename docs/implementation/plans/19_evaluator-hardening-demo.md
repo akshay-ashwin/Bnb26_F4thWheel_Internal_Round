@@ -22,6 +22,8 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/19-evaluator-hardening-demo.md` in plain language from the template.
 
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+
 ## 1. Goal
 
 Turn runs into evidence. Produce a scorecard that answers the problem statement with measured numbers (advantage ratio, share vs share inside a chance band, arrival-order independence, requests per win, 0 oversold, latency, FPR, recall), prove resilience with chaos runs, tune performance from measurements, record the final FIFO vs Fair runs with fixed seeds, and package everything the team needs to demo and answer judges without ever quoting a number a run didn't produce.
@@ -67,6 +69,7 @@ For each scenario file, compare its stated expectations to measured results and 
 Run combined_demo with bot identity budgets 0, 500, 2,000, 5,000, 10,000 in FIFO and Fair (fixed seeds). Plot bot seat share (y) vs bot identity share (x) with the diagonal y = x. Expected: FIFO far above the diagonal at every budget; Fair hugging it. Save as `docs/evidence/identity_budget_sweep.svg/png` and include the raw table. If time is short, run budgets 0, 2,000, 10,000 only and say so.
 
 ## 6. Performance tuning loop (measure → change one thing → re-measure; log each iteration in the review log)
+0. Record the test bed first (D-001, 2026-10-04): host OS and version, CPU/RAM, Docker backend (Docker Desktop with WSL2 on Windows, or Docker Desktop on macOS) and the CPU/RAM Docker is allowed to use, whether the simulator ran in a container, natively, or on a second machine, and the event loop. Everything runs in a Linux VM on both OSes, so those limits (not the host's raw specs) bound the numbers, and a Windows result and a macOS result must never be presented as comparable. Also set the Postgres `shared_buffers` ratio against the container's actual RAM (Plan 01 §4.4).
 1. Baseline the flash crowd and combined scenarios: record P95/P99, error rate, achieved RPS per endpoint group, Postgres CPU, Redis ops/s, pool wait times, `/me` cache hit ratio.
 2. Check slow queries (log_min_duration_statement, EXPLAIN ANALYZE on entries insert, `/me` query, claim, integrity view, sweeper).
 3. Levers in order: `/me` cache hit ratio and poll pacing → pool sizes per worker → uvicorn workers (CPU-bound?) → indexes → Redis pipelining → metrics flush interval. Never: `synchronous_commit=off`, disabling constraints, or skipping the entry row lock.
@@ -74,6 +77,9 @@ Run combined_demo with bot identity budgets 0, 500, 2,000, 5,000, 10,000 in FIFO
 5. Targets: P95 < 300 ms, P99 < 1 s, 5xx < 1% at peak (design). If not met on the hardware, report the real numbers and the reason (e.g., simulator-bound) — never round toward the target.
 
 ## 7. Chaos suite (each run on the combined scenario at moderate scale; integrity must stay ok)
+
+> Updated by D-001 (2026-10-04): inject every failure with `docker compose` (`stop`, `kill`, `start`, `restart`, `pause`) or from inside containers, never with host tools like `kill`, `pkill` or `tc`, which do not exist on Windows. The same commands then work from PowerShell and from a macOS shell. Record the exact commands in `docs/evidence/chaos.md`.
+
 1. Kill Redis during registration; restart after 20 s.
 2. Kill Redis during the claim storm.
 3. Restart the API container during the claim storm.
@@ -83,22 +89,22 @@ Run combined_demo with bot identity budgets 0, 500, 2,000, 5,000, 10,000 in FIFO
 Record results in `docs/evidence/chaos.md`: what happened, what users saw, integrity before/after. Optional stretch: dashboard chaos toggles that run these live (design STRETCH) — only if everything else is done.
 
 ## 8. Final recorded runs
-- FIFO and Fair combined_demo × 3 each with fixed seeds (published in the manifest), on the demo hardware/network.
+- FIFO and Fair combined_demo × 3 each with fixed seeds (published in the manifest), on the demo hardware/network. All six runs use the same test bed (6.0), and `docs/demo/numbers.md` states it next to the run ids.
 - Screen-record both full runs (dashboard + one user screen) as the fallback video (design: pre-record, run live only if venue rehearsal passed).
 - Export chart PNGs as backup slides.
 - Fill the demo script's X values ONLY from these recorded runs (design rule: never quote a number the run did not produce). Put them in `docs/demo/numbers.md` with run ids.
 
 ## 9. Demo runbook (`docs/demo/RUNBOOK.md`)
-- Hardware/network setup (simulator on second laptop if available), pre-flight checklist (compose healthy, secrets, SIM_MODE on, drop created, admin key in dashboard, presentation mode on, fallback video ready, browser zoom, phone for the live user segment).
+- Hardware/network setup (simulator on second laptop if available; that laptop may be Windows or macOS and runs the simulator natively with `uv run fd sim --native ...`, no Docker needed there), pre-flight checklist (`uv run fd doctor` clean, compose healthy, secrets, SIM_MODE on, drop created, admin key in dashboard, presentation mode on, fallback video ready, browser zoom, phone for the live user segment). Give every command in both macOS shell and Windows PowerShell form. > Updated by D-001 (2026-10-04).
 - Exact sequence matching design §18 timings with who clicks what: verify on phone → FIFO run → integrity callout → reset to Fair → same attack → draw + verify button → fairness panel → architecture slide.
-- Reset procedure between rehearsals (one command), and what to do if: the simulator stalls, the API is slow, the projector resolution differs, the network dies (switch to video).
+- Reset procedure between rehearsals (one command: `uv run fd demo-reset`), and what to do if: the simulator stalls, the API is slow, the projector resolution differs, the network dies (switch to video).
 - Timer targets; rehearse until under 5:00 twice in a row (design gate).
 
 ## 10. Judge Q&A evidence map (`docs/demo/QA.md`)
 For each question in design §19 and each criticism in §20: the one-line answer, the artifact that proves it (chart path, scorecard field, test name, endpoint), and who answers. Add honest limits: simulated OTP has zero real cost (shown via the budget sweep), operator could pre-grind seeds without drand (state whether drand was implemented), load numbers are achieved-not-claimed, ASN signal status, step-up phone-storage decision.
 
 ## 11. Freeze checklist (code freeze gate)
-All MUST items from design §14 done or explicitly cut with the cut-list rationale; CI green (lint, tests, isolation, OpenAPI drift, attribution scan); no TODOs without owners; `.env.example` complete; README quickstart verified on a fresh clone; final attribution audit of the entire git history (authors, committers, trailers) — R1.
+All MUST items from design §14 done or explicitly cut with the cut-list rationale; CI green (lint, tests, isolation, OpenAPI drift, attribution scan); no TODOs without owners; `.env.example` complete; README quickstart verified on a fresh clone on BOTH macOS and Windows (D-001: if only one OS is available, state which one is unverified in the review log and Q&A); final attribution audit of the entire git history (authors, committers, trailers) — R1.
 
 ## 12. Verification / Definition of Done
 - Scorecards for FIFO and Fair exist from the final runs, with every target marked pass/fail honestly.

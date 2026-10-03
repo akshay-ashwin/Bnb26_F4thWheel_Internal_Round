@@ -69,16 +69,29 @@ For every plan, write `docs/review-logs/NN-<slug>.md` from `docs/implementation/
 8. Attribution check (R1), then final commit for the plan.
 9. In your chat reply, give a 5–10 line summary and point to the review log.
 
+## Stack and platform rules (D-001 — binding for every plan)
+
+Full reasoning: `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. If a plan says something different, these rules win (except that they never override the invariants or R1–R4).
+
+1. **macOS and Windows 11 are both first-class** (Linux runs the containers and CI). Never write code, scripts, docs or commands that work on one OS only. No Makefiles, no bash-only scripts, no symlinks in git, no `.sh`/`.ps1` as a primary entry point. A host-OS-specific command in docs always appears for both macOS and Windows (PowerShell).
+2. **Everything runs through Docker Compose.** The host needs only git, Docker (Compose v2; Docker Desktop in Linux-container mode on Windows) and uv. `api`, `web`, Postgres, Redis, migrations, tests, lint and formatters all run in containers. The one exception: the simulator may also run natively on Windows/macOS (`uv run --project sim sim ...`), so it must not require uvloop or any Unix-only API.
+3. **Tasks are `uv run fd <task>`, not Make.** Same names as the old Make targets (`up`, `down`, `logs`, `migrate`, `reset-db`, `test-api`, `test-web`, `lint`, `fmt`, `hooks`, `secrets`, `sim`, `eval`, `demo-reset`) plus `openapi` and `doctor`. Where a plan says `make X`, read `uv run fd X`. The CLI lives in `tools/fd/`, uses only the standard library, runs subprocesses with argument lists (never `shell=True`), and never imports `api/` or `sim/`.
+4. **Line endings are LF, always** (`.gitattributes` `eol=lf`, `.editorconfig`, `.env` written with LF, CR check in `fd lint`).
+5. **Versions:** Python 3.12 (in images), Node 22 LTS (in the `web` image; `engines >=22 <23`), PostgreSQL 16, Redis 7. Changing one needs a Deviation Record.
+6. **Skills:** the `fullstack-dev-skills` plugin's topical skills may be used as advice. Never use any `project:*` skill or `/project:*` command (the Jira ticket/epic/sprint workflow) and never the Atlassian integration. Precedence is CLAUDE.md, then the plans, then any skill. A skill's suggestion that conflicts with a plan or invariant is ignored, or adopted only through Rule R2 with a Deviation Record; it is never applied silently. Skills must not change how commits, PRs or attribution work (R1), write outside the repository map, or create content in external services.
+
 ## Repository map (created in Plan 01)
 
-- `api/` — FastAPI backend (Python 3.12, asyncpg, redis-py)
-- `web/` — React + Vite + TypeScript + Tailwind + Recharts (user app and judge dashboard)
-- `sim/` — attack simulator and evaluator (Python asyncio + httpx)
-- `infra/` — Docker Compose, Postgres/Redis config, migrations runner config
+- `api/` — FastAPI backend (Python 3.12, asyncpg, redis-py); runs only in a Linux container
+- `web/` — React + Vite + TypeScript + Tailwind + Recharts (user app and judge dashboard); Node 22 LTS in its container
+- `sim/` — attack simulator and evaluator (Python asyncio + httpx); runs in a container or natively on Windows/macOS
+- `tools/fd/` — the `uv run fd <task>` task CLI (root `pyproject.toml`, standard library only)
+- `infra/` — Docker Compose, Postgres/Redis config, migrations runner config, git hook shims
 - `docs/design/` — the original architecture document
 - `docs/contract/` — frozen API contract, JSON examples, OpenAPI snapshot
 - `docs/implementation/` — these plans, templates, PLAN_CHANGELOG.md
-- `docs/decisions/` — Deviation Records (D-xxx)
+- `docs/decisions/` — Deviation Records (D-xxx); D-001 is the stack decision above
+- `docs/PLATFORMS.md` — per-OS setup and tuning notes (macOS / Windows)
 - `docs/review-logs/` — one plain-language log per plan
 
 ## Style and quality defaults

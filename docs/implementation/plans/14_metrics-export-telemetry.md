@@ -22,6 +22,8 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/14-metrics-export-telemetry.md` in plain language from the template.
 
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+
 ## 1. Goal
 
 One JSON endpoint gives the dashboard everything it needs every second (traffic by outcome, latency percentiles, inventory, flags, step-ups), an NDJSON export gives the evaluator every entry's fate, the simulator can post ground truth for display only, and a CI check proves no decision code can read that ground truth.
@@ -81,7 +83,7 @@ Row per entry: `{user_public_id, entry_id, entered_at, risk_score, risk_flags, r
 ## 8. Ground-truth isolation (invariant 6) — make it mechanically enforced
 
 1. Module boundaries: decision modules = auth, entries, draw, claim, tokens, sweeper, step-up, abuse (L1–L8), risk. Read-only presentation modules = admin metrics/export/sim/runs.
-2. Use an import-linter style contract (or a simple CI script) asserting: no decision module imports the sim router, sim schemas, or the sim repository; and the string prefix `sim:` appears only in the sim repository module. Fail CI otherwise.
+2. Use an import-linter style contract (or a simple CI script written in Python, never shell, so it runs on any OS and inside `uv run fd lint`; > Updated by D-001, 2026-10-04) asserting: no decision module imports the sim router, sim schemas, or the sim repository; and the string prefix `sim:` appears only in the sim repository module. Fail CI otherwise.
 3. Also assert the backend codebase never reads headers or fields named label/actor/ground_truth.
 4. Document in `docs/contract/isolation.md` and reference it in Q&A prep.
 

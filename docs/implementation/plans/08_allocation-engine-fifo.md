@@ -22,6 +22,8 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/08-allocation-engine-fifo.md` in plain language from the template.
 
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+
 ## 1. Goal
 
 Implement the one transaction that turns a free seat into a sold seat, make it correct under any concurrency (last-seat race, multi-tab, retries, lost responses), make it fast with `FOR UPDATE SKIP LOCKED`, run FIFO mode end-to-end, and expose `/integrity` computed by SQL. Gate: 0 oversold under 1,000 concurrent claims.
@@ -99,7 +101,7 @@ Run against real Postgres with 4 workers where possible (spin uvicorn in a subpr
 
 ## 6. Verification / Definition of Done
 
-All tests pass; the gate "0 oversold under 1,000 concurrent claims" is met and its latency numbers are recorded; a browser-free FIFO run works end to end via curl: create → open → verify ×N → enter → me → claim → integrity.
+All tests pass; the gate "0 oversold under 1,000 concurrent claims" is met and its latency numbers are recorded; a browser-free FIFO run works end to end via curl (`curl.exe` in Windows PowerShell; D-001): create → open → verify ×N → enter → me → claim → integrity.
 
 ## 7. Plan-update obligations
 

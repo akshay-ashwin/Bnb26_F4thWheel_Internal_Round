@@ -22,6 +22,8 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/02-database-schema.md` in plain language from the template.
 
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+
 ## 1. Goal
 
 Create the Postgres schema whose constraints make overselling and double-holding structurally impossible, plus the SQL views that prove it live. After this plan, a reviewer can try to break integrity with raw SQL and fail.
@@ -33,14 +35,16 @@ Out of scope: application code that uses them (later plans).
 
 ## 3. Pre-flight checks
 
-1. `make up` healthy; you can connect to Postgres with `psql` inside the container.
+1. `uv run fd up` healthy; you can connect to Postgres with `docker compose exec postgres psql ...` (psql lives in the container, not on the host).
 2. Plan 01 review log read; directory `api/migrations/` exists.
 
 ## 4. Implementation steps
 
 ### 4.1 Migration tooling
 
-Choose a plain-SQL migration runner (recommended: dbmate or yoyo, or Alembic used only with raw SQL). The app uses asyncpg without an ORM, so migrations must be hand-written SQL that a reviewer can read. Requirements: numbered, forward-only for the hackathon, each migration transactional, a `make migrate` target, and a `schema.sql` dump committed after each migration for review.
+Choose a plain-SQL migration runner (recommended: dbmate or yoyo, or Alembic used only with raw SQL). The app uses asyncpg without an ORM, so migrations must be hand-written SQL that a reviewer can read. Requirements: numbered, forward-only for the hackathon, each migration transactional, a `uv run fd migrate` task (wrapping the compose `migrate` service), and a `schema.sql` dump committed after each migration for review.
+
+> Updated by D-001 (2026-10-04): the runner is never installed on the host. Use dbmate's official container image through the compose `migrate` service (this is why dbmate is the recommended default; yoyo/Alembic would run inside the `api` image). The `schema.sql` dump must be written by the tool inside the container (dbmate `dump`), not by a shell redirect: PowerShell 5.1's `>` re-encodes output as UTF-16 and can add CRs. Migrations and `schema.sql` are LF (Plan 01 §4.2).
 
 ### 4.2 Extensions and conventions
 
@@ -112,7 +116,7 @@ Using pytest against the real Postgres:
 
 ## 7. Verification / Definition of Done
 
-All tests in §5 pass; `schema.sql` committed; `make migrate` is idempotent (running twice is harmless); review log includes the measured integrity-view latency.
+All tests in §5 pass; `schema.sql` committed; `uv run fd migrate` is idempotent (running twice is harmless); review log includes the measured integrity-view latency.
 
 ## 8. Plan-update obligations
 

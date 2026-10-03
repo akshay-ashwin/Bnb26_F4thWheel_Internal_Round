@@ -22,6 +22,8 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/18-attack-simulator.md` in plain language from the template.
 
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+
 ## 1. Goal
 
 A reproducible population of humans and bots, each a small state machine using ONLY the public API exactly as a browser would, that can model 50,000 logical clients arriving in a 30 s burst plus attackers with up to 10,000 clients and thousands of farmed identities, writes a ground-truth file the backend never sees, streams labelled telemetry to the dashboard, and honestly reports the load it actually achieved.
@@ -35,10 +37,11 @@ Out of scope: metrics/fairness computation (19).
 
 1. `SIM_MODE=true` in the target backend (dev_otp, X-Sim-Client-IP, telemetry enabled).
 2. Contract examples available; `sim/` is a separate Python project with NO imports from `api/` (invariant 6).
+3. The simulator must work in BOTH modes (D-001, 2026-10-04): in the compose `sim` container (default, Linux) and natively on Windows or macOS with `uv run --project sim sim ...` (also on a second laptop). Neither mode may require `uvloop`, `fork`, `resource`, POSIX signals or any other Unix-only API (see 7 and 8).
 
 ## 4. Safety guard (build first)
 
-The runner refuses to target any base URL not in an explicit allowlist (localhost, compose service names, the second laptop's LAN IP configured by flag) and refuses to run unless the target's `/api/drops/{id}` reports a drop and `/api/readyz` responds. This is an attack tool; it must not be pointable at arbitrary hosts. Note it in the README.
+The runner refuses to target any base URL not in an explicit allowlist (localhost, `host.docker.internal` (a containerised simulator reaching an API on the host; D-001), compose service names, the second laptop's LAN IP configured by flag) and refuses to run unless the target's `/api/drops/{id}` reports a drop and `/api/readyz` responds. This is an attack tool; it must not be pointable at arbitrary hosts. Note it in the README.
 
 ## 5. Client model
 
@@ -75,19 +78,34 @@ Each scenario file states its expected Fair and FIFO behaviour (copied from desi
 ## 7. Runner
 
 - **Architecture:** a coordinator process + P shard processes (P ≈ CPU cores − 1, or configured). Each shard runs one asyncio loop with an httpx AsyncClient per logical session (cookie jar per session; or bearer tokens to save memory — record choice: bearer is lighter and the API treats both the same) and a shared connection pool limited to `max_concurrent_sockets`.
-- Clients are assigned to shards deterministically by `hash(client_id) mod P`, so a seed reproduces the same run.
+- **Cross-platform process model (D-001, 2026-10-04):** create processes with `multiprocessing.get_context("spawn")` explicitly, because `spawn` is the only start method on Windows and the default on macOS; therefore everything passed to a shard must be picklable, shard entry points live at module level, and the CLI entry is guarded by `if __name__ == "__main__"`. No `os.fork`, no `signal.SIGUSR1` or similar; handle Ctrl-C portably. Event loop: use `uvloop` only if it imports (optional extra `fast`, never on Windows); otherwise the stdlib loop (ProactorEventLoop on Windows — do not switch Windows to the Selector loop, which is limited to 512 sockets by `select`). Record the loop in use in the manifest. Import the Unix-only `resource` module (raising the open-file limit) only when `sys.platform != "win32"`.
+- Clients are assigned to shards deterministically by `zlib.crc32(client_id.encode("utf-8")) % P` (a stable hash), so a seed reproduces the same run. > Updated by D-001 (2026-10-04): the plan said `hash(client_id) mod P`. Python randomises `str` hashes per interpreter process and `spawn` starts fresh interpreters, so that would assign clients differently in every shard and break reproducibility. Same rule for any other stable bucketing in `sim/` (never use built-in `hash()` on strings).
 - Arrival scheduler: precompute arrival timestamps from the curve with the seeded RNG; shards sleep until each client's start time.
 - **Orchestration:** the coordinator uses admin endpoints to reset/create the drop with the scenario's mode, open, close (or let auto-close), draw, and wait for DONE; records each phase timestamp.
 - **Telemetry:** shards send per-second counts by label to the coordinator over a multiprocessing queue; the coordinator posts `/sim/telemetry` once per second (attack_phase, clients_by_label, identities_by_label, requests_by_label) and, if the live evaluator is enabled (Plan 19), `fairness_live`.
 - **Ground truth:** each shard appends NDJSON lines to its own file; the coordinator merges at the end into `sim/out/<run_id>/ground_truth.ndjson`: per identity `{run_id, identity_id, user_public_id, label, actor_id, device_id, sim_ip24, clients_count, requests_sent, requests_by_outcome, entered, first_entry_ms, offered, claimed, seat_no?, step_up_seen, step_up_passed}`; per replay attempt `{expected_outcome, observed_status, observed_code}`.
-- **Run manifest** `sim/out/<run_id>/manifest.json`: scenario file hash, RNG seed, drop id, mode, run_no, seed_commit, start/end, host info, achieved peak RPS, peak concurrent sockets, shards, errors by type, simulator CPU saturation warnings.
+- **Run manifest** `sim/out/<run_id>/manifest.json`: scenario file hash, RNG seed, drop id, mode, run_no, seed_commit, start/end, host info (OS and version, CPU count, Python version, event loop in use, run mode `container|native`, and for runs against a Dockerised API the Docker backend and the CPU/RAM given to Docker), achieved peak RPS, peak concurrent sockets, shards, errors by type, simulator CPU saturation warnings. > Updated by D-001 (2026-10-04): loop, mode and Docker resources added so numbers from macOS, Windows and Linux are never compared blindly.
 - **Achieved load honesty:** measure RPS and concurrent sockets on the simulator side; print them next to "50,000 logical clients" in the summary. If any shard's event loop lag exceeds 100 ms, flag "simulator-bound" in the manifest — the numbers then measure the simulator, not the API.
 
-## 8. OS / hardware notes (document in `sim/README.md`)
-- Raise open file limits; widen ephemeral port range; enable TCP reuse settings appropriate for the OS; prefer running the simulator on a second laptop over LAN (design). Record the actual setup used for final runs.
+## 8. OS / hardware notes (document in `sim/README.md`; general notes also in `docs/PLATFORMS.md`)
+
+> Updated by D-001 (2026-10-04): the single "raise open file limits" note is replaced by per-OS notes, because `ulimit` does not exist on Windows and the limits that matter differ by OS.
+
+The goal in every row is the same: allow a few thousand concurrent sockets and enough free local (ephemeral) ports. Prefer running the simulator on a second laptop over LAN (design); that laptop may be Windows or macOS and runs the simulator natively. Record the setup actually used for the final runs.
+
+| Where the simulator runs | What to do | Notes |
+|---|---|---|
+| Compose container (Linux, either host OS) — default | Set `ulimits: nofile` (e.g. 65535) and, if needed, `sysctls: net.ipv4.ip_local_port_range` on the `sim` service in `infra/docker-compose.yml`. Nothing to do on the host. | Docker Desktop's Linux VM CPU/RAM allocation caps the whole stack (Windows: WSL2 `.wslconfig`; macOS: Docker Desktop Resources). Published ports pass through Docker Desktop's proxy layer, so a native simulator hitting a containerised API on the same machine measures that layer too. |
+| macOS, native | In the shell that runs the simulator: `ulimit -n 65535` (the OS cap is `sysctl kern.maxfilesperproc`; persistent change via `launchctl limit maxfiles`). Widen local ports with `sudo sysctl -w net.inet.ip.portrange.first=10000` (resets on reboot). | Python's `resource` module can also raise the soft limit; the runner does it when available. |
+| Windows, native | There is no `ulimit`. The limit that bites is the dynamic port range (default 49152–65535): widen it from an administrator PowerShell with `netsh int ipv4 set dynamicport tcp start=10000 num=55535`. Optionally shorten TIME_WAIT with the `TcpTimedWaitDelay` registry value (reboot needed). | Use the default ProactorEventLoop. Do not import `resource`. Windows Defender Firewall may prompt once; the simulator only makes outbound connections. |
+| Any OS, native, API on another machine | Add that machine's LAN IP to the allowlist flag (section 4). | Best setup for honest load numbers (design: second laptop). |
+
+Never present numbers from different setups as comparable; the manifest (section 7) records which setup produced them.
 
 ## 9. CLI
 `sim run --scenario <file> --mode fifo|fair --target <url> --seed <n> [--live-eval]`, `sim sweep --budgets 0,500,2000,5000,10000`, `sim list`, `sim replay-expectations <run_id>`. Exit code non-zero if any scenario expectation hard-fails (e.g., integrity), so CI can run small versions.
+
+> Updated by D-001 (2026-10-04): how to invoke it. Container (default): `uv run fd sim --scenario <name> --mode <fifo|fair>` (the `fd` wrapper passes the remaining flags through to `sim run`). Native on the host (Windows, macOS, second laptop): `uv sync --project sim` once, then `uv run --project sim sim run ...` or `uv run fd sim --native ...`. Output goes to `sim/out/<run_id>/` in both modes (bind-mounted for the container), so `uv run fd eval --run <id>` finds it either way.
 
 ## 10. Tests
 
@@ -96,10 +114,11 @@ Each scenario file states its expected Fair and FIFO behaviour (copied from desi
 3. Ground truth lines join 1:1 with export rows by user_public_id.
 4. Small CI versions (e.g., 200 humans + 1 small attacker) of each scenario run in < 60 s against the compose stack.
 5. Safety guard blocks a non-allowlisted target.
+6. Cross-platform (D-001, 2026-10-04): the simulator's unit tests (determinism, safety guard, identity factory, stable shard assignment — the same client ids map to the same shards in two separate interpreter processes) pass on the `windows-latest` and `macos-latest` CI runners with `uvloop` NOT installed, and a tiny native run against a stub server completes under the `spawn` start method. The full-stack scenarios in test 4 stay on Linux CI.
 
 ## 11. Verification / Definition of Done
 
-All scenarios run at small scale in CI; normal + bot_flood + combined_demo run at full scale on the demo hardware with manifests recorded; achieved RPS and sockets noted in the review log.
+All scenarios run at small scale in CI; normal + bot_flood + combined_demo run at full scale on the demo hardware with manifests recorded; achieved RPS and sockets noted in the review log, together with the run mode, OS and event loop. At least one small scenario has been run natively on each OS available to the team (D-001).
 
 ## 12. Plan-update obligations
 
@@ -113,7 +132,8 @@ All scenarios run at small scale in CI; normal + bot_flood + combined_demo run a
 - Who the simulated people are, how humans and bots differ, and why humans are deliberately imperfect.
 - How labels are kept away from the backend.
 - What "50,000 clients" actually meant on our hardware (achieved RPS and sockets).
-- How a judge could re-run any result (scenario file + seed).
+- How a judge could re-run any result (scenario file + seed), on macOS or Windows, in the container or natively.
+- The per-OS tuning that was applied for the final runs and what each OS can and cannot do (D-001).
 
 ## Close-out sequence (do all of these, in order)
 

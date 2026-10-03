@@ -22,6 +22,8 @@ Standing rules that apply to every line of work in this plan:
 - **R3 — Refine every step.** Do the Refinement Pass at the end of this plan before declaring it done, and refine the remaining plans if this step taught you something.
 - **R4 — Review log.** Write `docs/review-logs/15-frontend-foundation.md` in plain language from the template.
 
+> Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 22 LTS, macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
+
 ## 1. Goal
 
 A React app whose every network interaction is correct under refresh, reconnect, multi-tab and lost responses: typed from the OpenAPI spec, retries safely with stable idempotency keys, paces polling by the server, knows the server's clock, and can run entirely on mocks that reproduce every state and error in the contract.
@@ -99,6 +101,8 @@ Tailwind theme: semantic colours (success, warning, danger, info, neutral), larg
 ### 4.13 Testing setup
 Vitest + Testing Library for units; Playwright for e2e (Plan 16/17 add specs) runnable against mocks and against the real stack.
 
+> Updated by D-001 (2026-10-04): everything runs in containers, so there is no host Node. Unit tests run in the `web` container (Node 22 LTS, `uv run fd test-web`). For e2e, add a compose service under profile `e2e` that runs Playwright with its browsers inside a Linux container on the compose network (`uv run fd test-web --e2e`), so the real-stack tests behave the same on macOS and Windows. Use Playwright's official image or `playwright install --with-deps` on the Node 22 `web` image; pin the Playwright version and record which route you chose (the official image's bundled Node version must be checked against Node 22). Test reports, traces and screenshots are written to a bind-mounted, git-ignored folder; curated screenshots go to `docs/screens/`. Dev-server file watching uses polling (Plan 01 §4.4).
+
 ## 5. Tests
 
 1. Clock sync converges on a mocked server offset of +7 s within 3 responses.
@@ -110,7 +114,7 @@ Vitest + Testing Library for units; Playwright for e2e (Plan 16/17 add specs) ru
 
 ## 6. Verification / Definition of Done
 
-`pnpm dev` with mocks shows a placeholder page per state via the switcher; unit tests pass; the client works against the real API for `/drops/{id}` and `/me`.
+The web dev server (started by `uv run fd up`; it runs `pnpm dev` inside the `web` container with `VITE_USE_MOCKS=true` for mock mode) with mocks shows a placeholder page per state via the switcher; unit tests pass; the client works against the real API for `/drops/{id}` and `/me`.
 
 ## 7. Plan-update obligations
 
