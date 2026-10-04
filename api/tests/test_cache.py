@@ -1,3 +1,4 @@
+import asyncio
 import time
 
 import pytest
@@ -78,3 +79,51 @@ async def test_command_errors_do_not_trip_the_breaker(test_settings: Settings) -
     assert cache.redis_available()
     assert await cache.ping()
     await cache.close()
+
+
+async def test_warm_opens_connections_ahead_of_traffic(test_settings: Settings) -> None:
+    cache = Cache(test_settings)
+    probe = Cache(test_settings)
+    try:
+        before = int((await probe.client.info("clients"))["connected_clients"])
+        assert await cache.warm(12) == 24  # 12 for the fast client, 12 for the required one
+        after = int((await probe.client.info("clients"))["connected_clients"])
+        assert after - before == 24
+        # They are pooled and reusable: a burst of 12 needs no new connections.
+        await asyncio.gather(*(cache.ping() for _ in range(12)))
+        await asyncio.gather(*(cache.run_required(lambda r: r.ping()) for _ in range(12)))
+        assert int((await probe.client.info("clients"))["connected_clients"]) == after
+    finally:
+        await cache.close()
+        await probe.close()
+
+
+async def test_warm_never_raises_when_redis_is_down(test_settings: Settings) -> None:
+    cache = Cache(test_settings.model_copy(update={"redis_url": "redis://127.0.0.1:1/0"}))
+    try:
+        assert await cache.warm(5) == 0
+    finally:
+        await cache.close()
+
+
+async def test_required_client_is_tolerant_and_ignores_the_breaker(test_settings: Settings) -> None:
+    cache = Cache(test_settings)
+    try:
+        assert cache.required_client is not cache.client
+        for _ in range(3):
+            cache.breaker.record_failure()
+        assert cache.breaker.is_open
+        assert await cache.run_required(lambda r: r.ping()) is True
+    finally:
+        await cache.close()
+
+
+async def test_required_operation_on_dead_redis_is_a_503(test_settings: Settings) -> None:
+    from app.errors import ServiceUnavailable
+
+    cache = Cache(test_settings.model_copy(update={"redis_url": "redis://127.0.0.1:1/0"}))
+    try:
+        with pytest.raises(ServiceUnavailable):
+            await cache.run_required(lambda r: r.ping())
+    finally:
+        await cache.close()

@@ -13,6 +13,7 @@ from app import db
 from app.cache import Cache
 from app.config import Settings, get_settings
 from app.errors import install_handlers
+from app.identity.sms import SimulatedSmsProvider
 from app.middleware.asgi import AbuseLayersMiddleware, RequestContextMiddleware
 from app.observability.logging import configure_logging
 from app.routers import admin, ops, public, sim
@@ -31,6 +32,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         log.info("starting", extra={"config": settings.public_summary()})
         app.state.pool = await db.create_pool(settings)
         app.state.cache = Cache(settings)
+        await app.state.cache.warm(settings.redis_warm_connections)
+        app.state.sms = SimulatedSmsProvider()
         try:
             yield
         finally:
@@ -45,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redoc_url=None,
         lifespan=lifespan,
     )
+    app.state.settings = settings
     install_handlers(app)
 
     # add_middleware: the last one added is the outermost.

@@ -14,12 +14,15 @@ Redis uses a reserved DB index (15) so tests never touch the dev data.
 from __future__ import annotations
 
 import os
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Any
 from urllib.parse import urlparse
 
 import asyncpg
 import httpx
 import pytest
+import redis.asyncio as aioredis
 
 from app.config import Settings, get_settings
 from app.main import create_app
@@ -87,7 +90,12 @@ def test_settings(base_settings: Settings, app_url: str) -> Settings:
     """Settings for the api under test: the test database as the restricted role, test Redis."""
     secret = type(base_settings.database_url)
     return base_settings.model_copy(
-        update={"database_url": secret(app_url), "redis_url": TEST_REDIS_URL}
+        update={
+            "database_url": secret(app_url),
+            "redis_url": TEST_REDIS_URL,
+            "db_pool_min": 2,  # a big idle pool per test app would only slow the suite down
+            "redis_warm_connections": 0,
+        }
     )
 
 
@@ -109,6 +117,41 @@ async def _client(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
 async def client(test_settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
     async for c in _client(test_settings.model_copy(update={"sim_mode": True})):
         yield c
+
+
+@pytest.fixture
+async def clean_redis() -> AsyncIterator[None]:
+    """Empty test Redis (DB 15) before the test. Redis only ever holds disposable state."""
+    r = aioredis.Redis.from_url(TEST_REDIS_URL)
+    await r.flushdb()
+    await r.aclose()
+    yield
+
+
+@asynccontextmanager
+async def _client_ctx(
+    settings: Settings, peer: tuple[str, int]
+) -> AsyncIterator[httpx.AsyncClient]:
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app, client=peer)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+            c.app = app  # type: ignore[attr-defined]
+            yield c
+
+
+@pytest.fixture
+def client_factory(
+    test_settings: Settings,
+) -> Callable[..., AbstractAsyncContextManager[httpx.AsyncClient]]:
+    """`async with client_factory(sim_mode=False, peer=("10.0.0.5", 1)) as c: ...`"""
+
+    def make(
+        peer: tuple[str, int] = ("127.0.0.1", 123), **overrides: Any
+    ) -> AbstractAsyncContextManager[httpx.AsyncClient]:
+        return _client_ctx(test_settings.model_copy(update=overrides), peer)
+
+    return make
 
 
 @pytest.fixture

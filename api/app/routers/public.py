@@ -2,11 +2,13 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response
 
-from app.deps import IdempotencyKey, session_credential
+from app.deps import CacheDep, IdempotencyKey, PoolDep, SettingsDep, session_credential
 from app.errors import ErrorCode as E
 from app.errors import NotImplementedYet
+from app.identity import service
+from app.identity.client import client_info
 from app.routers._common import errs
 from app.schemas.auth import OtpRequestIn, OtpRequestOut, OtpVerifyIn, OtpVerifyOut
 from app.schemas.claim import ClaimIn, ClaimOut
@@ -17,6 +19,10 @@ from app.schemas.stepup import StepUpIn, StepUpOut
 
 router = APIRouter(tags=["public"])
 _session = [Depends(session_credential)]
+
+
+def _request_id(request: Request) -> str:
+    return str(request.state.request_id) if hasattr(request.state, "request_id") else ""
 
 
 @router.get(
@@ -36,9 +42,25 @@ async def get_drop(drop_id: UUID) -> DropOut:
     operation_id="requestOtp",
     responses=errs(E.OTP_THROTTLED, E.INVALID_PHONE, E.RATE_LIMITED),
 )
-async def request_otp(body: OtpRequestIn) -> OtpRequestOut:
+async def request_otp(
+    body: OtpRequestIn,
+    request: Request,
+    settings: SettingsDep,
+    cache: CacheDep,
+) -> OtpRequestOut:
     """Same phone within 30 s returns the same request_id. dev_otp only when SIM_MODE."""
-    raise NotImplementedYet()
+    result = await service.request_otp(
+        phone=body.phone,
+        device_id=body.device_id,
+        client=client_info(request, settings),
+        settings=settings,
+        store=service.make_store(cache, settings),
+        sms=request.app.state.sms,
+        request_id_for_log=_request_id(request),
+    )
+    return OtpRequestOut(
+        request_id=result.request_id, expires_in_s=result.expires_in_s, dev_otp=result.dev_otp
+    )
 
 
 @router.post(
@@ -47,9 +69,37 @@ async def request_otp(body: OtpRequestIn) -> OtpRequestOut:
     operation_id="verifyOtp",
     responses=errs(E.OTP_INVALID, E.OTP_EXPIRED, E.RATE_LIMITED),
 )
-async def verify_otp(body: OtpVerifyIn) -> OtpVerifyOut:
+async def verify_otp(
+    body: OtpVerifyIn,
+    request: Request,
+    response: Response,
+    settings: SettingsDep,
+    pool: PoolDep,
+    cache: CacheDep,
+) -> OtpVerifyOut:
     """Sets the fd_session cookie. Re-verify returns the existing session for the same device."""
-    raise NotImplementedYet()
+    verified = await service.verify_otp(
+        request_id=body.request_id,
+        otp=body.otp,
+        device_id=body.device_id,
+        client=client_info(request, settings),
+        settings=settings,
+        store=service.make_store(cache, settings),
+        pool=pool,
+        cache=cache,
+        request_id_for_log=_request_id(request),
+    )
+    response.set_cookie(
+        "fd_session",
+        verified.token,
+        max_age=settings.session_ttl_s,
+        httponly=True,
+        samesite="lax",
+        secure=settings.cookie_secure,
+        path="/api",
+        domain=settings.cookie_domain or None,
+    )
+    return OtpVerifyOut(session_token=verified.token, user_public_id=verified.user_public_id)
 
 
 @router.post(

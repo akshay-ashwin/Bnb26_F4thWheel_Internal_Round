@@ -708,10 +708,10 @@ CREATE INDEX seats_free_idx ON public.seats USING btree (drop_id, seat_no) WHERE
 
 
 --
--- Name: sessions_user_device_active_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: sessions_user_device_active_uidx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX sessions_user_device_active_idx ON public.sessions USING btree (user_id, device_id) WHERE (revoked_at IS NULL);
+CREATE UNIQUE INDEX sessions_user_device_active_uidx ON public.sessions USING btree (user_id, device_id) WHERE (revoked_at IS NULL);
 
 
 --
@@ -830,4 +830,5 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20261004100000'),
     ('20261004100100'),
     ('20261004100200'),
-    ('20261004100300');
+    ('20261004100300'),
+    ('20261004100400');

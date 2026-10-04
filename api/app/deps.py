@@ -8,10 +8,18 @@ from fastapi import Depends, Header, Request
 from fastapi.security import APIKeyCookie, APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 
 from app.cache import Cache
-from app.config import Settings, get_settings
+from app.config import Settings
 from app.errors import IdempotencyKeyMissing, Unauthenticated
+from app.identity.session import Session, load_session, verify_token
 
-SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+def get_app_settings(request: Request) -> Settings:
+    """The settings this app was built with (not a global), so tests can run apps side by side."""
+    settings: Settings = request.app.state.settings
+    return settings
+
+
+SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 
 
 def get_pool(request: Request) -> asyncpg.Pool:
@@ -54,11 +62,26 @@ async def require_sim_key(
 
 
 async def session_credential(
+    request: Request,
+    settings: SettingsDep,
+    pool: PoolDep,
+    cache: CacheDep,
     cookie: Annotated[str | None, Depends(_cookie)],
     bearer: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
-) -> None:
-    """Declares the session auth schemes in the contract. Plan 04 turns this into a real lookup
-    (it will return the session and raise UNAUTHENTICATED); until then it enforces nothing."""
+) -> Session:
+    """The signed-in session, from the cookie or else the bearer header (same token either way).
+
+    A present but bad cookie is a 401; it does not fall through to the bearer header."""
+    token = cookie or (bearer.credentials if bearer else None)
+    session_id = verify_token(settings, token) if token else None
+    if session_id is None:
+        raise Unauthenticated()
+    session = await load_session(pool, cache, settings, session_id)
+    request.state.user_public_id = session.user_public_id  # for the access log
+    return session
+
+
+CurrentSession = Annotated[Session, Depends(session_credential)]
 
 
 async def require_idempotency_key(

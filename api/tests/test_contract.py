@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from app.errors import ErrorCode
+from tests.auth_helpers import login
 
 EXPECTED_OPERATIONS = {
     ("get", "/api/drops/{drop_id}"),
@@ -91,14 +92,13 @@ async def test_sim_route_absent_when_sim_mode_is_off(client_no_sim: httpx.AsyncC
     ("method", "path", "body", "headers"),
     [
         ("GET", f"/api/drops/{DROP}", None, {}),
-        ("POST", "/api/auth/otp/request", {"phone": "+14155550123", "device_id": "d1"}, {}),
-        ("POST", "/api/auth/otp/verify", {"request_id": "r", "otp": "1", "device_id": "d"}, {}),
         ("POST", f"/api/drops/{DROP}/entries", {}, {}),
         ("GET", f"/api/drops/{DROP}/me", None, {}),
         ("POST", f"/api/drops/{DROP}/claim", {"admission_token": "t"}, KEY),
         ("POST", f"/api/drops/{DROP}/step-up", {"otp": "123456"}, KEY),
     ],
 )
+@pytest.mark.usefixtures("clean_db", "clean_redis")
 async def test_public_stubs_return_501_envelope(
     client: httpx.AsyncClient,
     method: str,
@@ -106,12 +106,30 @@ async def test_public_stubs_return_501_envelope(
     body: dict[str, Any] | None,
     headers: dict[str, str],
 ) -> None:
+    await login(client)  # the session-protected stubs now check the session first (Plan 04)
     response = await client.request(method, path, json=body, headers=headers)
     assert response.status_code == 501
     payload = response.json()
     assert payload["error"]["code"] == "NOT_IMPLEMENTED"
     assert payload["server_time"].endswith("Z")
     assert response.headers["x-request-id"]
+
+
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        ("POST", f"/api/drops/{DROP}/entries", {}),
+        ("GET", f"/api/drops/{DROP}/me", None),
+        ("POST", f"/api/drops/{DROP}/claim", {"admission_token": "t"}),
+        ("POST", f"/api/drops/{DROP}/step-up", {"otp": "123456"}),
+    ],
+)
+async def test_session_routes_say_401_without_a_session(
+    client: httpx.AsyncClient, method: str, path: str, body: dict[str, Any] | None
+) -> None:
+    response = await client.request(method, path, json=body, headers=KEY)
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"
 
 
 async def test_admin_and_sim_stubs(
@@ -160,7 +178,9 @@ async def test_validation_error_is_400_envelope_and_never_echoes_input(
     assert phone not in response.text
 
 
+@pytest.mark.usefixtures("clean_db", "clean_redis")
 async def test_bad_uuid_and_missing_idempotency_key(client: httpx.AsyncClient) -> None:
+    await login(client)
     bad = await client.get("/api/drops/not-a-uuid")
     assert bad.status_code == 400 and bad.json()["error"]["code"] == "VALIDATION_ERROR"
     missing = await client.post(f"/api/drops/{DROP}/claim", json={"admission_token": "t"})
