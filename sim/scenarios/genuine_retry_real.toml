@@ -1,0 +1,84 @@
+# REAL-BACKEND validation: 200 genuine users on a realistic network mix, under 10,000 bot
+# clients (9,000 flood + 800 burst + 50 duplicate + 100 farm + 10 replay + 40 anonymous).
+#
+# Genuine network mix (shared IP never means same person):
+#   40 users behind ONE campus NAT IP, 60 users behind 6 carrier-grade NAT IPs (10 per IP),
+#   100 users on their own home IP; 25% of all users switch Wi-Fi -> mobile data after sign-in.
+# Genuine behaviour: 4-5 entry clicks, one refresh, 50% open a second tab, honour Retry-After,
+# claim if offered. Same seed in both modes.
+name = "genuine_retry_real"
+seed = 101
+capacity = 50
+registration_s = 60
+claim_window_s = 40
+bot_connections = 1000
+timeout_s = 15
+
+[humans]
+count = 200
+campus_users = 40
+carrier_nat_users = 60
+carrier_nat_ips = 6
+network_switch_p = 0.25
+arrival = { type = "uniform", spread_s = 10 }
+entry_attempts = [4, 5]
+second_tab_p = 0.5
+refresh_p = 1.0
+
+[[attackers]]
+actor_id = "FLOOD"
+kind = "flood"
+identities = 1
+clients_per_identity = 9000
+rps_per_client = 20
+devices = 1
+subnets = 1
+ips_per_subnet = 4
+
+[[attackers]]
+actor_id = "BURST"
+kind = "burst"
+identities = 4
+clients_per_identity = 200
+rps_per_client = 20
+devices = 2
+subnets = 2
+ips_per_subnet = 2
+
+[[attackers]]
+actor_id = "DUP"
+kind = "duplicate"
+identities = 50
+clients_per_identity = 1
+rps_per_client = 10
+devices = 50
+subnets = 25
+ips_per_subnet = 2
+user_agents = ["python-requests/2.32", "Go-http-client/1.1"]
+
+[[attackers]]
+actor_id = "FARM"
+kind = "farm"
+identities = 100
+clients_per_identity = 1
+rps_per_client = 0.5
+devices = 10
+subnets = 5
+ips_per_subnet = 4
+step_up_success_p = 0.0
+
+[[attackers]]
+actor_id = "REPLAY"
+kind = "replay"
+identities = 10
+devices = 10
+subnets = 10
+ips_per_subnet = 1
+poll_s = 0.5
+
+[[attackers]]
+actor_id = "ANON"
+kind = "anon"
+identities = 0
+clients = 40
+rps_per_client = 20

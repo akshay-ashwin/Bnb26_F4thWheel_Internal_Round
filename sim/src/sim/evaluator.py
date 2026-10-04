@@ -158,6 +158,32 @@ def evaluate(run: Path) -> dict[str, Any]:
     step_failed = sum(1 for h in humans if str(h.get("step_up") or "").startswith("failed"))
     fair_mode = meta["mode"] == "fair"
     winners_confirmed = sum(1 for r in human_winners if r.get("seat_no"))
+    gt_by_id = {g["identity_id"]: g for g in gt}
+    score_of = {r["user_public_id"]: r.get("risk_score") or 0 for r in rows}
+
+    def completed(h: dict[str, Any]) -> bool:
+        """Signed in, exactly one entry, saw a definite outcome, and claimed if offered."""
+        pub = h.get("user_public_id") or ""
+        return (
+            entries_per_identity.get(pub, 0) == 1
+            and h.get("final_status") is not None
+            and (bool(h.get("seat_no")) or not h.get("offered"))
+        )
+
+    by_network: dict[str, dict[str, int]] = {}
+    for h in humans:
+        g = gt_by_id.get(h.get("identity_id", ""), {})
+        for net in [g.get("network", "home")] + (["switched"] if g.get("alt_ip") else []):
+            b = by_network.setdefault(
+                net,
+                {"users": 0, "entered": 0, "completed": 0, "users_with_429": 0, "flagged": 0},
+            )
+            pub = h.get("user_public_id") or ""
+            b["users"] += 1
+            b["entered"] += 1 if entries_per_identity.get(pub, 0) == 1 else 0
+            b["completed"] += 1 if completed(h) else 0
+            b["users_with_429"] += 1 if h.get("rate_limited", 0) > 0 else 0
+            b["flagged"] += 1 if score_of.get(pub, 0) >= STEP_UP_SCORE else 0
     genuine = {
         # denominators are ALL simulated genuine users, including anyone blocked before entering
         "users_attempted": users,
@@ -192,6 +218,10 @@ def evaluate(run: Path) -> dict[str, Any]:
         "step_up_passed": step_passed,
         "step_up_failed": step_failed,
         "dropped_users": users - len(h_ids),
+        "journey_completed": sum(1 for h in humans if completed(h)),
+        "journey_completed_rate": div(sum(1 for h in humans if completed(h)), users),
+        "requests_per_seat": div(hum_c.get("requests", 0), W["human"]),
+        "by_network": by_network,
         "network_switched": sum(1 for h in humans if h.get("network_switched")),
         "network_switched_dropped": sum(
             1
@@ -215,6 +245,13 @@ def evaluate(run: Path) -> dict[str, Any]:
         ),
         "human_false_positive_rate": div(fp, E["human"]),
         "human_flagged": fp,
+        "shared_ip_users_flagged": sum(
+            1
+            for r in rows
+            if r["_label"] == "human"
+            and by_pub[r["user_public_id"]].get("network") in ("campus", "cgnat")
+            and (r.get("risk_score") or 0) >= STEP_UP_SCORE
+        ),
         "network_switch_users_flagged": sum(
             1
             for r in rows
@@ -258,6 +295,11 @@ def evaluate(run: Path) -> dict[str, Any]:
             "replay_successes": cs.get("replay_successes", 0),
             "forged_successes": cs.get("forged_successes", 0),
             "requests_per_seat": div(bot_c.get("requests", 0), W["bot"]),
+            "entries": E["bot"],
+            "seats": W["bot"],
+            "denied_4xx": bot_c.get("denied", 0),
+            "server_errors_5xx": bot_c.get("server_error", 0),
+            "transport_errors": bot_c.get("transport_error", 0),
             "identities": cs.get("bot_identities"),
             "identities_with_account": cs.get("bot_identities_with_account"),
         },
@@ -276,6 +318,7 @@ def evaluate(run: Path) -> dict[str, Any]:
             "duplicate_seats": integrity.get("duplicate_entries_with_seats"),
             "invariant_ok": integrity.get("invariant_ok"),
             "sold": integrity.get("sold"),
+            "extra": integrity.get("extra"),
         },
         "latency_ms": cs.get("latency_ms", {}),
         "achieved_load": cs.get("achieved", {}),
@@ -311,6 +354,13 @@ ROWS: list[tuple[str, Any]] = [
         lambda s: (
             f"{s['genuine']['retry_after_429_succeeded']} / "
             f"{s['genuine']['retry_after_429_still_failing']}"
+        ),
+    ),
+    (
+        "genuine journey completed",
+        lambda s: (
+            f"{s['genuine'].get('journey_completed')} "
+            f"({_f(s['genuine'].get('journey_completed_rate'), 4)})"
         ),
     ),
     (
@@ -373,6 +423,17 @@ ROWS: list[tuple[str, Any]] = [
             f"{_f(s['detection']['human_false_positive_rate'])}"
             f" / {_f(s['detection']['recall_farm'])}"
         ),
+    ),
+    (
+        "shared-IP / network-switch users flagged",
+        lambda s: (
+            f"{s['detection'].get('shared_ip_users_flagged')} / "
+            f"{s['detection'].get('network_switch_users_flagged')}"
+        ),
+    ),
+    (
+        "bot 5xx / transport errors",
+        lambda s: f"{s['bots'].get('server_errors_5xx')} / {s['bots'].get('transport_errors')}",
     ),
     (
         "replay / forged successes",

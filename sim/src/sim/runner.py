@@ -68,9 +68,21 @@ def make_population(sc: dict[str, Any], rng: random.Random) -> list[Identity]:
     n = int(h.get("count", 0))
     campus_n = int(h.get("campus_users", 0))
     campus_ip = _ip(rng, (128, 128))
+    # Carrier-grade NAT: `carrier_nat_users` genuine users share `carrier_nat_ips` public IPs
+    # in 100.64.0.0/10. Shared IP never means same person.
+    cgnat_n = int(h.get("carrier_nat_users", 0))
+    cgnat_ips = [
+        f"100.{64 + rng.randint(0, 63)}.{rng.randint(0, 255)}.{rng.randint(1, 254)}"
+        for _ in range(max(1, int(h.get("carrier_nat_ips", 1))) if cgnat_n else 0)
+    ]
     switch_p = float(h.get("network_switch_p", 0.0))
     for i, t in enumerate(arrivals(n, h.get("arrival", {}), rng)):
-        ip = campus_ip if i < campus_n else _ip(rng)
+        if i < campus_n:
+            ip, network = campus_ip, "campus"
+        elif i < campus_n + cgnat_n:
+            ip, network = cgnat_ips[(i - campus_n) % len(cgnat_ips)], "cgnat"
+        else:
+            ip, network = _ip(rng), "home"
         alt = (
             f"100.{64 + rng.randint(0, 63)}.{rng.randint(0, 255)}.{rng.randint(1, 254)}"
             if rng.random() < switch_p
@@ -88,6 +100,7 @@ def make_population(sc: dict[str, Any], rng: random.Random) -> list[Identity]:
                 rng.choice(BROWSER_UAS),
                 arrival_s=t,
                 alt_ip=alt,
+                network=network,
             )
         )
     for a in sc.get("attackers", []):
@@ -315,6 +328,7 @@ async def run(
                         "device_id": i.device_id,
                         "ip": i.ip,
                         "alt_ip": i.alt_ip,
+                        "network": i.network,
                         "arrival_s": round(i.arrival_s, 3),
                         "clients": i.clients,
                         "entered": i.entered,

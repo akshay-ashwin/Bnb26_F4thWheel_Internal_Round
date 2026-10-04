@@ -47,6 +47,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     st.add_argument("--base-url", default=os.environ.get("API_BASE_URL", "http://localhost:8000"))
     st.add_argument("--admin-key", default=os.environ.get("ADMIN_KEY", ""))
     st.add_argument("--out", default=None)
+    sm = sub.add_parser("smoke", help="end-to-end smoke test of a running backend")
+    sm.add_argument("--base-url", default=os.environ.get("API_BASE_URL", "http://localhost:8000"))
+    sm.add_argument("--admin-key", default=os.environ.get("ADMIN_KEY", ""))
+    sm.add_argument("--out", default="out/smoke")
     sw = sub.add_parser("sweep-report")
     sw.add_argument("runs", nargs="+")
     sw.add_argument("--out", default="out/sweep.json")
@@ -82,6 +86,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         out = Path(a.out or f"out/stampede_{a.mode}")
         rep = asyncio.run(stampede(a.base_url, a.admin_key, a.mode, a.users, a.capacity, out))
+        return 0 if rep["pass"] else 1
+
+    if a.cmd == "smoke":
+        from sim.smoke import smoke, write_report
+
+        rep = asyncio.run(smoke(a.base_url, a.admin_key))
+        write_report(rep, Path(a.out))
         return 0 if rep["pass"] else 1
 
     from sim.evaluator import evaluate, table
