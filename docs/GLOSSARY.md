@@ -9,8 +9,13 @@ One meaning per word. Use these names in code, docs, UI copy and review logs. If
 | **mode** | How seats are given out. `fifo` = first claim wins (the unfair "before"). `fair` = Verified Entry Window then Provable Draw (the "after"). Same API, same shapes in both. |
 | **identity** | One verified phone number. The unit of fairness: chance of a seat depends only on how many distinct identities a client controls. |
 | **user** | The database row for an identity (`users`). One phone hash = one user. |
-| **user_public_id** | Random public id of a user (`users.public_id`). Used in the draw and in exports instead of anything personal. |
+| **user_public_id** | Random public id of a user (`users.public_id`). Used in the draw and in exports instead of anything personal. Format (fixed in Plan 04, the draw hashes this exact string): 16 random bytes, base32, lowercase, no padding, 26 characters from `a-z2-7`. |
 | **session** | A signed-in browser tab or simulator client, created after OTP verification. Carried by the `fd_session` cookie or a bearer token. One user can have several. |
+| **phone_hash** | `HMAC-SHA256(PHONE_PEPPER, E.164 number)` as hex. The only form of a phone number the system keeps (`users.phone_hash`, UNIQUE: one phone = one identity). The raw number is never stored or logged. |
+| **pepper** | `PHONE_PEPPER`: a secret from the environment that keys the phone hash, so a stolen database alone cannot be reversed by trying every possible number. Changing it orphans every identity. |
+| **OTP request** | A one-time code held in Redis only: hash of the code, bound to a request id, the phone hash and the device id. Lives 300 s, five guesses, single use. Same phone within 30 s returns the same request id. |
+| **device_id** | Opaque id (8-128 characters) chosen by the client at login. Binds an OTP to the device that asked for it and a session to one device. |
+| **session token** | `<session uuid>.<base64url HMAC>`, signed with a key derived from `SESSION_SECRET`. Expiry (24 h) and revocation are checked server-side for cookie and bearer alike. |
 | **sid_hash** | Hash of the session id. Put inside an admission token so the token only works for the session that fetched it. |
 | **entry** | One identity's registration in one drop (`entries`). At most one per user per drop. Its `status` is the user's state. |
 | **entry status** | `REGISTERED`, `OFFERED`, `STEP_UP_REQUIRED`, `WAITLISTED`, `NOT_SELECTED`, `OFFER_EXPIRED`, `ALLOCATED`, `DISQUALIFIED`. Every change is a guarded update (`WHERE status = <expected>`). |
