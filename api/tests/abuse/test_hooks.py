@@ -3,6 +3,7 @@ app (Postgres + Redis db 15, the shared `client` fixture), with ABUSE_ENFORCE on
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 
 import asyncpg
@@ -84,3 +85,27 @@ async def test_the_draw_rescore_flags_early_members_of_a_shared_device(
     rows = await db.fetch("SELECT risk_score, risk_flags::text AS f, draw_rank FROM entries")
     assert all(r["risk_score"] == 40 and "device_shared" in r["f"] for r in rows)
     assert sorted(r["draw_rank"] for r in rows) == [1, 2, 3, 4]
+
+
+async def test_a_flood_the_limiter_rejects_cannot_take_sign_in_down(
+    client: httpx.AsyncClient, enforce: None
+) -> None:
+    """Regression (real-backend run, seed 101): the limiter shared the backend's Redis pool, a
+    flood exhausted it, and concurrent sign-ins got 503 (MaxConnectionsError opened the
+    breaker). The limiter now has its own pool; flood and sign-ins run at the same time."""
+    drop = uuid.uuid4()
+
+    async def flood(i: int) -> httpx.Response:
+        return await client.get(f"/api/drops/{drop}", headers={"X-Sim-Client-IP": f"6.6.{i % 4}.6"})
+
+    async def sign_in(i: int) -> httpx.Response:
+        return await client.post(
+            "/api/auth/otp/request",
+            json={"phone": fresh_phone(), "device_id": f"device-flood-{i:04d}"},
+            headers={"X-Sim-Client-IP": f"8.8.{i}.8"},
+        )
+
+    rs = await asyncio.gather(*(flood(i) for i in range(400)), *(sign_in(i) for i in range(20)))
+    floods, sign_ins = rs[:400], rs[400:]
+    assert any(r.status_code == 429 for r in floods)  # the limiter still enforces
+    assert [r.status_code for r in sign_ins] == [200] * 20
