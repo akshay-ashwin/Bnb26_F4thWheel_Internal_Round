@@ -1,0 +1,11 @@
+mode,attacker_identities,identity_share,seat_share,advantage_ratio,inside_band
+fifo,0,0.0000,0.0000,None,None
+fair,0,0.0000,0.0000,None,None
+fifo,500,0.9980,1.0000,None,True
+fair,500,0.3333,0.2700,0.74,True
+fifo,2000,1.0000,1.0000,None,True
+fair,2000,0.6234,0.6400,1.074,True
+fifo,5000,1.0000,1.0000,None,True
+fair,5000,0.7657,0.7200,0.787,True
+fifo,10000,1.0000,1.0000,None,True
+fair,10000,0.8634,0.9140,1.681,True

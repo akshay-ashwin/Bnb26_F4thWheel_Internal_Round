@@ -1,0 +1,136 @@
+[
+  {
+    "mode": "fifo",
+    "attacker_identities": 0,
+    "identity_share": 0.0,
+    "seat_share": 0.0,
+    "attacker_seats": 0,
+    "seats_total": 100,
+    "advantage_ratio": null,
+    "chance_band": null,
+    "inside_band": null
+  },
+  {
+    "mode": "fair",
+    "attacker_identities": 0,
+    "identity_share": 0.0,
+    "seat_share": 0.0,
+    "attacker_seats": 0,
+    "seats_total": 100,
+    "advantage_ratio": null,
+    "chance_band": null,
+    "inside_band": null
+  },
+  {
+    "mode": "fifo",
+    "attacker_identities": 500,
+    "identity_share": 0.998003992015968,
+    "seat_share": 1.0,
+    "attacker_seats": 100,
+    "seats_total": 100,
+    "advantage_ratio": null,
+    "chance_band": [
+      99,
+      100
+    ],
+    "inside_band": true
+  },
+  {
+    "mode": "fair",
+    "attacker_identities": 500,
+    "identity_share": 0.3333333333333333,
+    "seat_share": 0.27,
+    "attacker_seats": 27,
+    "seats_total": 100,
+    "advantage_ratio": 0.74,
+    "chance_band": [
+      25,
+      42
+    ],
+    "inside_band": true
+  },
+  {
+    "mode": "fifo",
+    "attacker_identities": 2000,
+    "identity_share": 1.0,
+    "seat_share": 1.0,
+    "attacker_seats": 100,
+    "seats_total": 100,
+    "advantage_ratio": null,
+    "chance_band": [
+      100,
+      100
+    ],
+    "inside_band": true
+  },
+  {
+    "mode": "fair",
+    "attacker_identities": 2000,
+    "identity_share": 0.623352165725047,
+    "seat_share": 0.64,
+    "attacker_seats": 64,
+    "seats_total": 100,
+    "advantage_ratio": 1.074,
+    "chance_band": [
+      53,
+      72
+    ],
+    "inside_band": true
+  },
+  {
+    "mode": "fifo",
+    "attacker_identities": 5000,
+    "identity_share": 1.0,
+    "seat_share": 1.0,
+    "attacker_seats": 100,
+    "seats_total": 100,
+    "advantage_ratio": null,
+    "chance_band": [
+      100,
+      100
+    ],
+    "inside_band": true
+  },
+  {
+    "mode": "fair",
+    "attacker_identities": 5000,
+    "identity_share": 0.7656982193064668,
+    "seat_share": 0.72,
+    "attacker_seats": 72,
+    "seats_total": 100,
+    "advantage_ratio": 0.787,
+    "chance_band": [
+      68,
+      85
+    ],
+    "inside_band": true
+  },
+  {
+    "mode": "fifo",
+    "attacker_identities": 10000,
+    "identity_share": 1.0,
+    "seat_share": 1.0,
+    "attacker_seats": 100,
+    "seats_total": 100,
+    "advantage_ratio": null,
+    "chance_band": [
+      100,
+      100
+    ],
+    "inside_band": true
+  },
+  {
+    "mode": "fair",
+    "attacker_identities": 10000,
+    "identity_share": 0.8634252936356187,
+    "seat_share": 0.9139784946236559,
+    "attacker_seats": 85,
+    "seats_total": 93,
+    "advantage_ratio": 1.681,
+    "chance_band": [
+      74,
+      86
+    ],
+    "inside_band": true
+  }
+]

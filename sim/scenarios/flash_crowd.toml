@@ -1,0 +1,12 @@
+# Flash crowd: 80% of humans arrive in the first 5 s. Scale `count` up for the final evidence run.
+name = "flash_crowd"
+seed = 42
+capacity = 50
+registration_s = 40
+claim_window_s = 25
+
+[humans]
+count = 2000
+arrival = { type = "burst", burst_frac = 0.8, burst_s = 5, spread_s = 20 }
+second_tab_p = 0.05
+refresh_p = 0.05
