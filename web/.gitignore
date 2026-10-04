@@ -1,0 +1,3 @@
+# Playwright output (curated screenshots go to docs/screens/)
+test-results/
+playwright-report/
