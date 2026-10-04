@@ -116,7 +116,19 @@ def api_health(out: str, since: str) -> None:
     )
     lines = res.stdout.splitlines()
     low = [x.lower() for x in lines]
+    # Access-log lines: every status >= 400 is logged (2xx are sampled), so 5xx counts are exact.
+    status_by_route: dict[str, int] = {}
+    for x in lines:
+        i = x.find("{")
+        try:
+            d = json.loads(x[i:]) if i >= 0 else {}
+        except ValueError:
+            continue
+        if isinstance(d.get("status"), int) and d["status"] >= 500:
+            k = f"{d['status']} {d.get('route')}"
+            status_by_route[k] = status_by_route.get(k, 0) + 1
     summary = {
+        "server_errors_by_route": status_by_route,
         "since": since,
         "lines": len(lines),
         "error": sum('"level": "error"' in x for x in low),
