@@ -189,7 +189,8 @@ def openapi(*, check: bool) -> int:
             console.info("OpenAPI snapshot is up to date")
             return 0
         console.fail(
-            f"{OPENAPI_SNAPSHOT} differs from the live spec: contract change? run `uv run fd openapi`"
+            f"{OPENAPI_SNAPSHOT} differs from the live spec: "
+            "contract change? run `uv run fd openapi`"
         )
         return 1
     path.write_bytes(spec.encode("utf-8"))

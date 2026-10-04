@@ -85,8 +85,9 @@ def base_settings() -> Settings:
 @pytest.fixture
 def test_settings(base_settings: Settings, app_url: str) -> Settings:
     """Settings for the api under test: the test database as the restricted role, test Redis."""
+    secret = type(base_settings.database_url)
     return base_settings.model_copy(
-        update={"database_url": type(base_settings.database_url)(app_url), "redis_url": TEST_REDIS_URL}
+        update={"database_url": secret(app_url), "redis_url": TEST_REDIS_URL}
     )
 
 
