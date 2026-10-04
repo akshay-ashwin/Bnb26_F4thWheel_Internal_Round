@@ -10,7 +10,6 @@ dependencies = [
     "redis>=5.0",
     "pydantic>=2.8",
     "pydantic-settings>=2.4",
-    "phonenumbers>=8.13",
 ]
 
 [dependency-groups]
@@ -33,8 +32,15 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S", "ASYNC"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency declarations in signatures are the framework idiom.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header"]
+
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101"]
+# Tests: asserts, seeded (non-crypto) randomness, fake secrets and dependency defaults are fine.
+"tests/**" = ["S101", "S105", "S311", "B008"]
+# The stress runner is a script: asserts are its checks, and long SQL/report lines are fine.
+"scripts/**" = ["S101", "E501"]
 
 [tool.mypy]
 strict = true

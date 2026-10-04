@@ -13,10 +13,13 @@ from app import db
 from app.cache import Cache
 from app.config import Settings, get_settings
 from app.errors import install_handlers
-from app.identity.sms import SimulatedSmsProvider
+from app.jobs.runner import Jobs
+from app.metrics import Metrics
 from app.middleware.asgi import AbuseLayersMiddleware, RequestContextMiddleware
+from app.observability import metrics as request_metrics
 from app.observability.logging import configure_logging
 from app.routers import admin, ops, public, sim
+from app.services.auth import SimulatedSmsProvider
 
 log = logging.getLogger("fairdrop")
 
@@ -32,11 +35,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         log.info("starting", extra={"config": settings.public_summary()})
         app.state.pool = await db.create_pool(settings)
         app.state.cache = Cache(settings)
-        await app.state.cache.warm(settings.redis_warm_connections)
-        app.state.sms = SimulatedSmsProvider()
+        metrics: Metrics = app.state.metrics
+        metrics.set_cache(app.state.cache)
+        metrics.start()
+        request_metrics.request_hooks.append(metrics.on_request)
+        jobs = Jobs(app.state.pool, app.state.cache, settings, metrics)
+        if settings.run_jobs:
+            jobs.start()
         try:
             yield
         finally:
+            await jobs.stop()
+            request_metrics.request_hooks.remove(metrics.on_request)
+            await metrics.stop()
             await app.state.cache.close()
             await app.state.pool.close()
 
@@ -49,6 +60,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.state.settings = settings
+    app.state.metrics = Metrics(None)
+    app.state.sms = SimulatedSmsProvider()
+    app.state.tasks = set()
+    app.dependency_overrides[get_settings] = lambda: settings  # one Settings per app instance
     install_handlers(app)
 
     # add_middleware: the last one added is the outermost.

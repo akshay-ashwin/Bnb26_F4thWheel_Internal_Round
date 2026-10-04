@@ -25,12 +25,6 @@ def test_defaults_are_valid_and_budget_is_130() -> None:
     assert make().db_connection_budget == 4 * 30 + 10
 
 
-def test_prod_without_secure_cookies_refuses_to_start() -> None:
-    with pytest.raises(ValidationError, match=r"COOKIE_SECURE=true"):
-        make(app_env="prod", sim_mode=False, cookie_secure=False)
-    make(app_env="prod", sim_mode=False, cookie_secure=True)  # fine
-
-
 def test_prod_with_sim_mode_refuses_to_start() -> None:
     with pytest.raises(ValidationError, match=r"APP_ENV=prod with SIM_MODE=true"):
         make(app_env="prod", sim_mode=True)

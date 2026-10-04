@@ -7,6 +7,7 @@ A saturated or dead database must turn into a fast 503, never a hang: acquire an
 have ~1 s timeouts, and errors.DB_UNAVAILABLE maps every such failure to SERVICE_UNAVAILABLE.
 """
 
+import json
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,11 +17,18 @@ import asyncpg
 from app.config import Settings
 
 
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Read and write json/jsonb columns as Python objects (idempotency, settings, run archive)."""
+    for kind in ("json", "jsonb"):
+        await conn.set_type_codec(kind, encoder=json.dumps, decoder=json.loads, schema="pg_catalog")
+
+
 async def create_pool(settings: Settings) -> asyncpg.Pool:
     pool: asyncpg.Pool | None = await asyncpg.create_pool(
         settings.database_url.get_secret_value(),
         min_size=settings.db_pool_min,
         max_size=settings.db_pool_max,
+        init=_init_connection,
         timeout=settings.db_connect_timeout_ms / 1000,
         command_timeout=settings.db_statement_timeout_ms / 1000 + 1,
         server_settings={

@@ -2,11 +2,13 @@
 
 from typing import Any
 
+import asyncpg
 import httpx
 import pytest
 
+from app.config import Settings
 from app.errors import ErrorCode
-from tests.auth_helpers import login
+from tests.app_helpers import make_user
 
 EXPECTED_OPERATIONS = {
     ("get", "/api/drops/{drop_id}"),
@@ -26,6 +28,12 @@ EXPECTED_OPERATIONS = {
     ("post", "/api/sim/telemetry"),
     ("get", "/api/healthz"),
     ("get", "/api/readyz"),
+    # Additions (docs/contract/additions.md): the public draw proof, the drop list, the latest
+    # simulator telemetry, and reading the abuse config back.
+    ("get", "/api/drops/{drop_id}/draw-proof"),
+    ("get", "/api/admin/drops"),
+    ("get", "/api/admin/drops/{drop_id}/sim"),
+    ("get", "/api/admin/abuse/config"),
 }
 DROP = "0b6c5d34-8c40-4d6d-9d57-2a53f3c9a001"
 KEY = {"Idempotency-Key": "11111111-1111-1111-1111-111111111111"}
@@ -92,47 +100,30 @@ async def test_sim_route_absent_when_sim_mode_is_off(client_no_sim: httpx.AsyncC
     ("method", "path", "body", "headers"),
     [
         ("GET", f"/api/drops/{DROP}", None, {}),
+        ("POST", "/api/auth/otp/request", {"phone": "+14155550123", "device_id": "d1"}, {}),
+        ("POST", "/api/auth/otp/verify", {"request_id": "r", "otp": "1", "device_id": "d"}, {}),
         ("POST", f"/api/drops/{DROP}/entries", {}, {}),
         ("GET", f"/api/drops/{DROP}/me", None, {}),
         ("POST", f"/api/drops/{DROP}/claim", {"admission_token": "t"}, KEY),
         ("POST", f"/api/drops/{DROP}/step-up", {"otp": "123456"}, KEY),
     ],
 )
-@pytest.mark.usefixtures("clean_db", "clean_redis")
-async def test_public_stubs_return_501_envelope(
+async def test_public_endpoints_answer_with_the_contract_shape_not_a_stub(
     client: httpx.AsyncClient,
     method: str,
     path: str,
     body: dict[str, Any] | None,
     headers: dict[str, str],
 ) -> None:
-    await login(client)  # the session-protected stubs now check the session first (Plan 04)
     response = await client.request(method, path, json=body, headers=headers)
-    assert response.status_code == 501
+    assert response.status_code != 501  # the stubs are implemented now (Plans 04-11)
     payload = response.json()
-    assert payload["error"]["code"] == "NOT_IMPLEMENTED"
+    assert "NOT_IMPLEMENTED" not in response.text
     assert payload["server_time"].endswith("Z")
     assert response.headers["x-request-id"]
 
 
-@pytest.mark.parametrize(
-    ("method", "path", "body"),
-    [
-        ("POST", f"/api/drops/{DROP}/entries", {}),
-        ("GET", f"/api/drops/{DROP}/me", None),
-        ("POST", f"/api/drops/{DROP}/claim", {"admission_token": "t"}),
-        ("POST", f"/api/drops/{DROP}/step-up", {"otp": "123456"}),
-    ],
-)
-async def test_session_routes_say_401_without_a_session(
-    client: httpx.AsyncClient, method: str, path: str, body: dict[str, Any] | None
-) -> None:
-    response = await client.request(method, path, json=body, headers=KEY)
-    assert response.status_code == 401
-    assert response.json()["error"]["code"] == "UNAUTHENTICATED"
-
-
-async def test_admin_and_sim_stubs(
+async def test_admin_and_sim_endpoints_require_their_keys_and_are_implemented(
     client: httpx.AsyncClient, admin_headers: dict[str, str], sim_headers: dict[str, str]
 ) -> None:
     admin_calls: list[tuple[str, str, dict[str, Any] | None]] = [
@@ -151,7 +142,7 @@ async def test_admin_and_sim_stubs(
         wrong = await client.request(method, path, json=body, headers={"X-Admin-Key": "nope"})
         assert wrong.status_code == 401, path
         ok = await client.request(method, path, json=body, headers=admin_headers)
-        assert ok.status_code == 501, path
+        assert ok.status_code != 501, path
     telemetry = {
         "run_id": "r",
         "attack_phase": "flood",
@@ -161,7 +152,7 @@ async def test_admin_and_sim_stubs(
     }
     assert (await client.post("/api/sim/telemetry", json=telemetry)).status_code == 401
     ok = await client.post("/api/sim/telemetry", json=telemetry, headers=sim_headers)
-    assert ok.status_code == 501
+    assert ok.status_code == 200
 
 
 async def test_validation_error_is_400_envelope_and_never_echoes_input(
@@ -178,12 +169,15 @@ async def test_validation_error_is_400_envelope_and_never_echoes_input(
     assert phone not in response.text
 
 
-@pytest.mark.usefixtures("clean_db", "clean_redis")
-async def test_bad_uuid_and_missing_idempotency_key(client: httpx.AsyncClient) -> None:
-    await login(client)
+async def test_bad_uuid_and_missing_idempotency_key(
+    client: httpx.AsyncClient, db: asyncpg.Connection, settings: Settings
+) -> None:
     bad = await client.get("/api/drops/not-a-uuid")
     assert bad.status_code == 400 and bad.json()["error"]["code"] == "VALIDATION_ERROR"
-    missing = await client.post(f"/api/drops/{DROP}/claim", json={"admission_token": "t"})
+    user = await make_user(db, settings)  # a signed-in user reaches the idempotency check
+    missing = await client.post(
+        f"/api/drops/{DROP}/claim", json={"admission_token": "t"}, headers=user.headers
+    )
     assert missing.status_code == 400
     assert missing.json()["error"]["code"] == "IDEMPOTENCY_KEY_MISSING"
 

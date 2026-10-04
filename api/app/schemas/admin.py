@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from app.schemas.base import ApiObject, ApiRequest, ApiResponse
+from app.schemas.base import ApiObject, ApiRequest, ApiResponse, Mode, Phase
 
 
 class RpsPoint(ApiObject):
@@ -35,6 +35,21 @@ class MetricsOut(ApiResponse):
     remaining: int
     flagged_entries: int
     step_ups: StepUps
+    # Additions for the dashboard and evaluator (see docs/contract/additions.md).
+    phase: Phase
+    mode: Mode
+    run_no: int
+    capacity: int
+    oversold: int
+    invariant_ok: bool
+    claims_ok: int
+    claims_sold_out: int
+    blocked_requests: int
+    throttled_requests: int
+    duplicate_requests: int
+    rate_limited_by_layer: dict[str, list[int]]
+    window_s: int
+    metrics_dropped: int
 
 
 class AbuseConfigIn(ApiRequest):

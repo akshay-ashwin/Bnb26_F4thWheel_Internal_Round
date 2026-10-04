@@ -15,7 +15,7 @@ One meaning per word. Use these names in code, docs, UI copy and review logs. If
 | **pepper** | `PHONE_PEPPER`: a secret from the environment that keys the phone hash, so a stolen database alone cannot be reversed by trying every possible number. Changing it orphans every identity. |
 | **OTP request** | A one-time code held in Redis only: hash of the code, bound to a request id, the phone hash and the device id. Lives 300 s, five guesses, single use. Same phone within 30 s returns the same request id. |
 | **device_id** | Opaque id (8-128 characters) chosen by the client at login. Binds an OTP to the device that asked for it and a session to one device. |
-| **session token** | `<session uuid>.<base64url HMAC>`, signed with a key derived from `SESSION_SECRET`. Expiry (24 h) and revocation are checked server-side for cookie and bearer alike. |
+| **session token** | `<session uuid>.<base64url HMAC>`, signed with `SESSION_SECRET`. Expiry (24 h) and revocation are checked server-side for cookie and bearer alike. |
 | **sid_hash** | Hash of the session id. Put inside an admission token so the token only works for the session that fetched it. |
 | **entry** | One identity's registration in one drop (`entries`). At most one per user per drop. Its `status` is the user's state. |
 | **entry status** | `REGISTERED`, `OFFERED`, `STEP_UP_REQUIRED`, `WAITLISTED`, `NOT_SELECTED`, `OFFER_EXPIRED`, `ALLOCATED`, `DISQUALIFIED`. Every change is a guarded update (`WHERE status = <expected>`). |

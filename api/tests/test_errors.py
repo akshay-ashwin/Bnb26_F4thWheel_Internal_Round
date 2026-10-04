@@ -6,6 +6,12 @@ from fastapi import FastAPI
 from app.errors import RateLimited, ServiceUnavailable
 
 
+@pytest.fixture
+async def client(client_own_app: httpx.AsyncClient) -> httpx.AsyncClient:
+    """These tests add routes to the app (and one breaks the pool): give them their own app."""
+    return client_own_app
+
+
 def _app(client: httpx.AsyncClient) -> FastAPI:
     app: FastAPI = client.app  # type: ignore[attr-defined]
     return app
