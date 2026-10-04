@@ -1,0 +1,24 @@
+{
+  "mode": "fair",
+  "users": 400,
+  "capacity": 100,
+  "eligible_claimers": 100,
+  "claim_requests": 500,
+  "replay_requests": 100,
+  "burst_seconds": 0.95,
+  "response_codes": {
+    "200": 500
+  },
+  "replay_successes": 0,
+  "replay_codes": {
+    "TOKEN_INVALID": 100
+  },
+  "sold": 100,
+  "oversold": 0,
+  "duplicate_seats_integrity": 0,
+  "duplicate_seat_numbers_in_export": 0,
+  "users_with_more_than_one_seat": 0,
+  "users_with_inconsistent_seat_responses": 0,
+  "invariant_ok": true,
+  "pass": true
+}

@@ -1,0 +1,27 @@
+# Variant of network_switch with a 60 s window (design: window >> burst), to separate the
+# network-switch effect from overload + a 25 s window. Both runs are reported.
+# S6: every genuine user signs in on Wi-Fi, then continues on mobile data (new IP, same session),
+# while a flood runs. Expected: zero flagged, zero dropped, every session keeps working.
+name = "network_switch_60s"
+seed = 42
+capacity = 50
+registration_s = 60
+claim_window_s = 25
+bot_connections = 1000
+
+[humans]
+count = 200
+arrival = { type = "uniform", spread_s = 10 }
+network_switch_p = 1.0
+second_tab_p = 0.3
+refresh_p = 0.3
+
+[[attackers]]
+actor_id = "FLOOD"
+kind = "flood"
+identities = 1
+clients_per_identity = 2000
+rps_per_client = 20
+devices = 1
+subnets = 1
+ips_per_subnet = 4

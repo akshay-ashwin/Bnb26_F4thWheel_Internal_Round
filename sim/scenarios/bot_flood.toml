@@ -1,0 +1,23 @@
+# One attacker, 10,000 clients, ONE identity, ignoring Retry-After.
+name = "bot_flood"
+seed = 42
+capacity = 50
+registration_s = 30
+claim_window_s = 25
+bot_connections = 1000
+
+[humans]
+count = 300
+arrival = { type = "uniform", spread_s = 15 }
+second_tab_p = 0.05
+refresh_p = 0.05
+
+[[attackers]]
+actor_id = "FLOOD"
+kind = "flood"
+identities = 1
+clients_per_identity = 10000
+rps_per_client = 20
+devices = 1
+subnets = 1
+ips_per_subnet = 4

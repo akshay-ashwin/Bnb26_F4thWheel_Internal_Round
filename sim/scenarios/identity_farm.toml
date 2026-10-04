@@ -1,0 +1,31 @@
+# S5: 5,000 farmed identities on 20 devices and 10 /24s; 40% come through 'good' proxies with
+# unique devices and IPs and browser user agents. 300 genuine users, 30 of them on one campus
+# Wi-Fi IP. The farm bought its accounts earlier (prestage_l6_off: account creation happens with
+# L6 off, modelling accounts made days before, outside the L6 windows); L6 is back on for the drop.
+name = "identity_farm"
+seed = 42
+capacity = 50
+registration_s = 30
+claim_window_s = 25
+bot_connections = 1000
+
+[humans]
+count = 300
+campus_users = 30
+arrival = { type = "uniform", spread_s = 15 }
+second_tab_p = 0.05
+refresh_p = 0.05
+
+[[attackers]]
+actor_id = "FARM"
+kind = "farm"
+identities = 5000
+clients_per_identity = 1
+rps_per_client = 0.25  # polling after the draw; raw volume is the flood scenarios' job
+devices = 20
+subnets = 10
+ips_per_subnet = 25
+clean_frac = 0.4
+phone_mode = "sequential"
+step_up_success_p = 0.0
+prestage_l6_off = true

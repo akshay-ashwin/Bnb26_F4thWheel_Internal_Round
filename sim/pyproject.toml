@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Fair Drop attack simulator and evaluator. Runs in a container or natively on Windows/macOS."
 requires-python = ">=3.12,<3.14"
 dependencies = [
-    "httpx>=0.27",
+    "aiohttp>=3.10",
 ]
 
 [project.optional-dependencies]
@@ -39,6 +39,13 @@ select = ["E", "F", "I", "B", "UP", "S", "ASYNC"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]
+# Seeded simulation randomness (recorded per run), never used for anything security related.
+"src/sim/**" = ["S311"]
+# Results are written once, after all network work has finished.
+"src/sim/runner.py" = ["ASYNC230", "ASYNC240"]
+"src/sim/stampede.py" = ["ASYNC240"]
+# Host-side orchestrator: subprocess with argument lists only, never a shell.
+"scripts/**" = ["S603"]
 
 [tool.mypy]
 strict = true

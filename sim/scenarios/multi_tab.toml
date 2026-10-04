@@ -1,0 +1,12 @@
+# Every human opens a second tab and both tabs claim when the offer arrives.
+name = "multi_tab"
+seed = 42
+capacity = 50
+registration_s = 25
+claim_window_s = 25
+
+[humans]
+count = 300
+arrival = { type = "uniform", spread_s = 10 }
+second_tab_p = 1.0
+refresh_p = 0.5

@@ -1,0 +1,25 @@
+{
+  "mode": "fifo",
+  "users": 400,
+  "capacity": 100,
+  "eligible_claimers": 400,
+  "claim_requests": 2000,
+  "replay_requests": 400,
+  "burst_seconds": 3.776,
+  "response_codes": {
+    "200": 500,
+    "409": 1500
+  },
+  "replay_successes": 0,
+  "replay_codes": {
+    "TOKEN_INVALID": 400
+  },
+  "sold": 100,
+  "oversold": 0,
+  "duplicate_seats_integrity": 0,
+  "duplicate_seat_numbers_in_export": 0,
+  "users_with_more_than_one_seat": 0,
+  "users_with_inconsistent_seat_responses": 0,
+  "invariant_ok": true,
+  "pass": true
+}

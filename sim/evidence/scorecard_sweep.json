@@ -1,0 +1,1204 @@
+{
+  "runs": [
+    {
+      "scenario": "identity_budget",
+      "mode": "fifo",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 443,
+        "with_exactly_one_entry": 443,
+        "entry_success_rate": 0.443,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 2614,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 377,
+        "seats_confirmed": 100,
+        "fair_winners": null,
+        "fair_winners_confirmed": null,
+        "claim_success_rate": 0.26525198938992045,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 0,
+        "rate_limited": 0,
+        "rejection_rate": null,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": null,
+        "identities": 0,
+        "identities_with_account": 0
+      },
+      "fairness": {
+        "entries": {
+          "human": 443,
+          "bot": 0
+        },
+        "seats": {
+          "human": 100,
+          "bot": 0
+        },
+        "bot_entry_share": 0.0,
+        "bot_seat_share": 0.0,
+        "advantage_ratio": null,
+        "chance_band": null,
+        "arrival_vs_win_spearman": -0.604
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": null,
+        "recall_farm": null,
+        "human_false_positive_rate": 0.0,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "human": {
+          "p50": 3.8,
+          "p95": 130.4,
+          "p99": 440.8,
+          "max": 558.5,
+          "n": 4614
+        }
+      },
+      "achieved_load": {
+        "duration_s": 47.0,
+        "total_requests": 4614,
+        "avg_rps": 98.1,
+        "peak_rps": 458,
+        "concurrent_clients": 1000,
+        "bot_login_s": 0.0
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 443,
+          "seats": 100,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fair",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 1000,
+        "with_exactly_one_entry": 1000,
+        "entry_success_rate": 1.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 18022,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 100,
+        "seats_confirmed": 100,
+        "fair_winners": 100,
+        "fair_winners_confirmed": 100,
+        "claim_success_rate": 1.0,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 0,
+        "rate_limited": 0,
+        "rejection_rate": null,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": null,
+        "identities": 0,
+        "identities_with_account": 0
+      },
+      "fairness": {
+        "entries": {
+          "human": 1000,
+          "bot": 0
+        },
+        "seats": {
+          "human": 100,
+          "bot": 0
+        },
+        "bot_entry_share": 0.0,
+        "bot_seat_share": 0.0,
+        "advantage_ratio": null,
+        "chance_band": null,
+        "arrival_vs_win_spearman": -0.001
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": null,
+        "recall_farm": null,
+        "human_false_positive_rate": 0.0,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "human": {
+          "p50": 3.6,
+          "p95": 20.8,
+          "p99": 189.2,
+          "max": 730.1,
+          "n": 20022
+        }
+      },
+      "achieved_load": {
+        "duration_s": 59.6,
+        "total_requests": 20022,
+        "avg_rps": 336.0,
+        "peak_rps": 635,
+        "concurrent_clients": 1000,
+        "bot_login_s": 0.0
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 1000,
+          "seats": 100,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fifo",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 1,
+        "with_exactly_one_entry": 1,
+        "entry_success_rate": 0.001,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 2669,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 0,
+        "seats_confirmed": 0,
+        "fair_winners": null,
+        "fair_winners_confirmed": null,
+        "claim_success_rate": null,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 2304,
+        "rate_limited": 0,
+        "rejection_rate": 0.0,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 23.04,
+        "identities": 500,
+        "identities_with_account": 500
+      },
+      "fairness": {
+        "entries": {
+          "human": 1,
+          "bot": 500
+        },
+        "seats": {
+          "human": 0,
+          "bot": 100
+        },
+        "bot_entry_share": 0.998003992015968,
+        "bot_seat_share": 1.0,
+        "advantage_ratio": null,
+        "chance_band": {
+          "mean": 99.8,
+          "lo95": 99,
+          "hi95": 100,
+          "bot_seats": 100,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": -0.473
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": 0.0,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 180.4,
+          "p95": 745.0,
+          "p99": 897.2,
+          "max": 921.8,
+          "n": 2304
+        },
+        "human": {
+          "p50": 3.1,
+          "p95": 15.1,
+          "p99": 345.4,
+          "max": 766.5,
+          "n": 4669
+        }
+      },
+      "achieved_load": {
+        "duration_s": 47.9,
+        "total_requests": 6973,
+        "avg_rps": 145.4,
+        "peak_rps": 560,
+        "concurrent_clients": 1500,
+        "bot_login_s": 2.0
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 1,
+          "seats": 0,
+          "max_entries_per_identity": 1
+        },
+        "SYBIL": {
+          "identities": 500,
+          "clients": 500,
+          "entries": 500,
+          "seats": 100,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fair",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 1000,
+        "with_exactly_one_entry": 1000,
+        "entry_success_rate": 1.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 18322,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 73,
+        "seats_confirmed": 73,
+        "fair_winners": 73,
+        "fair_winners_confirmed": 73,
+        "claim_success_rate": 1.0,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 4927,
+        "rate_limited": 0,
+        "rejection_rate": 0.0,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 182.4814814814815,
+        "identities": 500,
+        "identities_with_account": 500
+      },
+      "fairness": {
+        "entries": {
+          "human": 1000,
+          "bot": 500
+        },
+        "seats": {
+          "human": 73,
+          "bot": 27
+        },
+        "bot_entry_share": 0.3333333333333333,
+        "bot_seat_share": 0.27,
+        "advantage_ratio": 0.74,
+        "chance_band": {
+          "mean": 33.33,
+          "lo95": 25,
+          "hi95": 42,
+          "bot_seats": 27,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": 0.033
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": 0.0,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 103.1,
+          "p95": 917.5,
+          "p99": 1282.1,
+          "max": 1432.1,
+          "n": 4927
+        },
+        "human": {
+          "p50": 5.1,
+          "p95": 196.4,
+          "p99": 322.9,
+          "max": 1349.6,
+          "n": 20322
+        }
+      },
+      "achieved_load": {
+        "duration_s": 61.0,
+        "total_requests": 25249,
+        "avg_rps": 413.9,
+        "peak_rps": 882,
+        "concurrent_clients": 1500,
+        "bot_login_s": 2.1
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 1000,
+          "seats": 73,
+          "max_entries_per_identity": 1
+        },
+        "SYBIL": {
+          "identities": 500,
+          "clients": 500,
+          "entries": 500,
+          "seats": 27,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fifo",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 0,
+        "with_exactly_one_entry": 0,
+        "entry_success_rate": 0.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 2665,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 0,
+        "seats_confirmed": 0,
+        "fair_winners": null,
+        "fair_winners_confirmed": null,
+        "claim_success_rate": null,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 8681,
+        "rate_limited": 1037,
+        "rejection_rate": 0.11945628383826748,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 86.81,
+        "identities": 2000,
+        "identities_with_account": 1758
+      },
+      "fairness": {
+        "entries": {
+          "human": 0,
+          "bot": 1758
+        },
+        "seats": {
+          "human": 0,
+          "bot": 100
+        },
+        "bot_entry_share": 1.0,
+        "bot_seat_share": 1.0,
+        "advantage_ratio": null,
+        "chance_band": {
+          "mean": 100.0,
+          "lo95": 100,
+          "hi95": 100,
+          "bot_seats": 100,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": -0.371
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": null,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 152.1,
+          "p95": 1198.8,
+          "p99": 1850.9,
+          "max": 1947.3,
+          "n": 8681
+        },
+        "human": {
+          "p50": 3.0,
+          "p95": 29.0,
+          "p99": 1611.2,
+          "max": 2038.1,
+          "n": 4665
+        }
+      },
+      "achieved_load": {
+        "duration_s": 47.2,
+        "total_requests": 13346,
+        "avg_rps": 282.7,
+        "peak_rps": 1063,
+        "concurrent_clients": 2758,
+        "bot_login_s": 6.4
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 0,
+          "seats": 0,
+          "max_entries_per_identity": 0
+        },
+        "SYBIL": {
+          "identities": 2000,
+          "clients": 2000,
+          "entries": 1758,
+          "seats": 100,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fair",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 1000,
+        "with_exactly_one_entry": 1000,
+        "entry_success_rate": 1.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 17681,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 36,
+        "seats_confirmed": 36,
+        "fair_winners": 36,
+        "fair_winners_confirmed": 36,
+        "claim_success_rate": 1.0,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 17509,
+        "rate_limited": 1378,
+        "rejection_rate": 0.07870238163230339,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 273.578125,
+        "identities": 2000,
+        "identities_with_account": 1655
+      },
+      "fairness": {
+        "entries": {
+          "human": 1000,
+          "bot": 1655
+        },
+        "seats": {
+          "human": 36,
+          "bot": 64
+        },
+        "bot_entry_share": 0.623352165725047,
+        "bot_seat_share": 0.64,
+        "advantage_ratio": 1.074,
+        "chance_band": {
+          "mean": 62.34,
+          "lo95": 53,
+          "hi95": 72,
+          "bot_seats": 64,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": 0.004
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": 0.0,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 178.8,
+          "p95": 1564.1,
+          "p99": 3171.3,
+          "max": 3556.2,
+          "n": 17509
+        },
+        "human": {
+          "p50": 98.0,
+          "p95": 420.8,
+          "p99": 1494.8,
+          "max": 3544.2,
+          "n": 19681
+        }
+      },
+      "achieved_load": {
+        "duration_s": 62.0,
+        "total_requests": 37190,
+        "avg_rps": 599.6,
+        "peak_rps": 1142,
+        "concurrent_clients": 2655,
+        "bot_login_s": 6.1
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 1000,
+          "seats": 36,
+          "max_entries_per_identity": 1
+        },
+        "SYBIL": {
+          "identities": 2000,
+          "clients": 2000,
+          "entries": 1655,
+          "seats": 64,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fifo",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 0,
+        "with_exactly_one_entry": 0,
+        "entry_success_rate": 0.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 2656,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 0,
+        "seats_confirmed": 0,
+        "fair_winners": null,
+        "fair_winners_confirmed": null,
+        "claim_success_rate": null,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 21945,
+        "rate_limited": 6565,
+        "rejection_rate": 0.2991569833675097,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 219.45,
+        "identities": 5000,
+        "identities_with_account": 3342
+      },
+      "fairness": {
+        "entries": {
+          "human": 0,
+          "bot": 3342
+        },
+        "seats": {
+          "human": 0,
+          "bot": 100
+        },
+        "bot_entry_share": 1.0,
+        "bot_seat_share": 1.0,
+        "advantage_ratio": null,
+        "chance_band": {
+          "mean": 100.0,
+          "lo95": 100,
+          "hi95": 100,
+          "bot_seats": 100,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": -0.286
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": null,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 100.5,
+          "p95": 2369.6,
+          "p99": 3031.7,
+          "max": 3718.3,
+          "n": 21945
+        },
+        "human": {
+          "p50": 3.1,
+          "p95": 280.7,
+          "p99": 890.6,
+          "max": 2021.7,
+          "n": 4656
+        }
+      },
+      "achieved_load": {
+        "duration_s": 47.6,
+        "total_requests": 26601,
+        "avg_rps": 558.3,
+        "peak_rps": 1295,
+        "concurrent_clients": 4342,
+        "bot_login_s": 16.0
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 0,
+          "seats": 0,
+          "max_entries_per_identity": 0
+        },
+        "SYBIL": {
+          "identities": 5000,
+          "clients": 5000,
+          "entries": 3342,
+          "seats": 100,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fair",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 1000,
+        "with_exactly_one_entry": 1000,
+        "entry_success_rate": 1.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 16856,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 28,
+        "seats_confirmed": 28,
+        "fair_winners": 28,
+        "fair_winners_confirmed": 28,
+        "claim_success_rate": 1.0,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 38142,
+        "rate_limited": 6842,
+        "rejection_rate": 0.17938230821666404,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 529.75,
+        "identities": 5000,
+        "identities_with_account": 3268
+      },
+      "fairness": {
+        "entries": {
+          "human": 1000,
+          "bot": 3268
+        },
+        "seats": {
+          "human": 28,
+          "bot": 72
+        },
+        "bot_entry_share": 0.7656982193064668,
+        "bot_seat_share": 0.72,
+        "advantage_ratio": 0.787,
+        "chance_band": {
+          "mean": 76.57,
+          "lo95": 68,
+          "hi95": 85,
+          "bot_seats": 72,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": 0.023
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": 0.0,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 220.9,
+          "p95": 2612.3,
+          "p99": 3407.9,
+          "max": 4418.1,
+          "n": 38142
+        },
+        "human": {
+          "p50": 195.7,
+          "p95": 920.5,
+          "p99": 3358.8,
+          "max": 4000.9,
+          "n": 18856
+        }
+      },
+      "achieved_load": {
+        "duration_s": 63.0,
+        "total_requests": 56998,
+        "avg_rps": 904.4,
+        "peak_rps": 1425,
+        "concurrent_clients": 4268,
+        "bot_login_s": 15.7
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 1000,
+          "seats": 28,
+          "max_entries_per_identity": 1
+        },
+        "SYBIL": {
+          "identities": 5000,
+          "clients": 5000,
+          "entries": 3268,
+          "seats": 72,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fifo",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 0,
+        "with_exactly_one_entry": 0,
+        "entry_success_rate": 0.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 2229,
+        "first_try_success_rate": 1.0,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 0,
+        "offered_or_fifo_token": 0,
+        "seats_confirmed": 0,
+        "fair_winners": null,
+        "fair_winners_confirmed": null,
+        "claim_success_rate": null,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 44956,
+        "rate_limited": 15230,
+        "rejection_rate": 0.3387756917875256,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 449.56,
+        "identities": 10000,
+        "identities_with_account": 6141
+      },
+      "fairness": {
+        "entries": {
+          "human": 0,
+          "bot": 6032
+        },
+        "seats": {
+          "human": 0,
+          "bot": 100
+        },
+        "bot_entry_share": 1.0,
+        "bot_seat_share": 1.0,
+        "advantage_ratio": null,
+        "chance_band": {
+          "mean": 100.0,
+          "lo95": 100,
+          "hi95": 100,
+          "bot_seats": 100,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": -0.207
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": null,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 100
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 94.8,
+          "p95": 4171.4,
+          "p99": 5450.5,
+          "max": 12007.0,
+          "n": 44956
+        },
+        "human": {
+          "p50": 6.8,
+          "p95": 7011.0,
+          "p99": 8830.9,
+          "max": 10116.1,
+          "n": 4229
+        }
+      },
+      "achieved_load": {
+        "duration_s": 47.6,
+        "total_requests": 49185,
+        "avg_rps": 1032.4,
+        "peak_rps": 1351,
+        "concurrent_clients": 7141,
+        "bot_login_s": 31.6
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 0,
+          "seats": 0,
+          "max_entries_per_identity": 0
+        },
+        "SYBIL": {
+          "identities": 10000,
+          "clients": 10000,
+          "entries": 6032,
+          "seats": 100,
+          "max_entries_per_identity": 1
+        }
+      }
+    },
+    {
+      "scenario": "identity_budget",
+      "mode": "fair",
+      "sim_seed": 42,
+      "capacity": 100,
+      "genuine": {
+        "users_attempted": 1000,
+        "logged_in": 1000,
+        "entered": 1000,
+        "with_exactly_one_entry": 1000,
+        "entry_success_rate": 1.0,
+        "users_with_any_429": 0,
+        "users_429_rate": 0.0,
+        "requests": 12686,
+        "first_try_success_rate": 0.9435598297335646,
+        "rate_limited_responses": 0,
+        "rate_limited_rate": 0.0,
+        "rate_limited_in_user_logs": 0,
+        "rate_limited_with_retry_after": 0,
+        "retry_after_429_succeeded": 0,
+        "retry_after_429_still_failing": 0,
+        "retry_after_header_missing": 0,
+        "server_errors_5xx": 0,
+        "transport_errors": 358,
+        "offered_or_fifo_token": 12,
+        "seats_confirmed": 8,
+        "fair_winners": 15,
+        "fair_winners_confirmed": 8,
+        "claim_success_rate": 0.5333333333333333,
+        "step_up_required": 0,
+        "step_up_passed": 0,
+        "step_up_failed": 0,
+        "dropped_users": 0,
+        "network_switched": 0,
+        "network_switched_dropped": 0
+      },
+      "bots": {
+        "requests": 66271,
+        "rate_limited": 14832,
+        "rejection_rate": 0.22380830227399617,
+        "token_rejected": 0,
+        "replay_successes": 0,
+        "forged_successes": 0,
+        "requests_per_seat": 779.6588235294117,
+        "identities": 10000,
+        "identities_with_account": 6322
+      },
+      "fairness": {
+        "entries": {
+          "human": 1000,
+          "bot": 6322
+        },
+        "seats": {
+          "human": 8,
+          "bot": 85
+        },
+        "bot_entry_share": 0.8634252936356187,
+        "bot_seat_share": 0.9139784946236559,
+        "advantage_ratio": 1.681,
+        "chance_band": {
+          "mean": 80.3,
+          "lo95": 74,
+          "hi95": 86,
+          "bot_seats": 85,
+          "inside": true
+        },
+        "arrival_vs_win_spearman": -0.007
+      },
+      "detection": {
+        "flagged_entries": 0,
+        "precision": null,
+        "recall_all_bots": 0.0,
+        "recall_farm": 0.0,
+        "human_false_positive_rate": 0.0,
+        "human_flagged": 0,
+        "network_switch_users_flagged": 0
+      },
+      "integrity": {
+        "oversold": 0,
+        "duplicate_seats": 0,
+        "invariant_ok": true,
+        "sold": 93
+      },
+      "latency_ms": {
+        "bot": {
+          "p50": 659.2,
+          "p95": 4839.1,
+          "p99": 6049.7,
+          "max": 14043.6,
+          "n": 66271
+        },
+        "human": {
+          "p50": 337.2,
+          "p95": 9000.6,
+          "p99": 15409.2,
+          "max": 15728.0,
+          "n": 14686
+        }
+      },
+      "achieved_load": {
+        "duration_s": 65.4,
+        "total_requests": 80957,
+        "avg_rps": 1237.2,
+        "peak_rps": 1520,
+        "concurrent_clients": 7322,
+        "bot_login_s": 32.6
+      },
+      "actors": {
+        "human": {
+          "identities": 1000,
+          "clients": 1000,
+          "entries": 1000,
+          "seats": 8,
+          "max_entries_per_identity": 1
+        },
+        "SYBIL": {
+          "identities": 10000,
+          "clients": 10000,
+          "entries": 6322,
+          "seats": 85,
+          "max_entries_per_identity": 1
+        }
+      }
+    }
+  ]
+}
