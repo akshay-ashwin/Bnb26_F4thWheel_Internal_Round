@@ -102,3 +102,13 @@ async def fire_concurrently[T](n: int, make_request: Callable[[int], Awaitable[T
     await asyncio.sleep(0)  # let every task reach the barrier
     start.set()
     return await asyncio.gather(*tasks)
+
+
+async def open_drop(conn: asyncpg.Connection, drop_id: uuid.UUID, *, window_s: int = 300) -> None:
+    """Move a SCHEDULED drop to OPEN with a registration window (what the admin `open` does)."""
+    await conn.execute(
+        "UPDATE drops SET phase = 'OPEN', reg_opens_at = now(),"
+        " reg_closes_at = now() + make_interval(secs => $2) WHERE id = $1",
+        drop_id,
+        float(window_s),
+    )
