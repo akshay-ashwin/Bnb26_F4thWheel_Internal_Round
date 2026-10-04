@@ -92,6 +92,11 @@ services:
     volumes:
       - ./web:/app
       - web-node-modules:/app/node_modules
+      # Read-only: `pnpm gen:api` turns the frozen OpenAPI snapshot into TypeScript types.
+      - ./docs/contract:/contract:ro
+    environment:
+      # "true" serves every API call from the in-browser mock (demo mode, no backend needed).
+      VITE_USE_MOCKS: ${VITE_USE_MOCKS:-false}
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${WEB_PORT:-5173}:5173"
     depends_on:

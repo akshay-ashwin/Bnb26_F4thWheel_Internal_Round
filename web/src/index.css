@@ -1,1 +1,104 @@
 @import "tailwindcss";
+
+/* Design tokens. Tailwind v4 is CSS-first: these become utilities (bg-ink-900, text-brand-400...). */
+@theme {
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  --color-ink-950: #07070b;
+  --color-ink-900: #0e0e15;
+  --color-ink-850: #13131c;
+  --color-ink-800: #1a1a26;
+  --color-ink-700: #262635;
+  --color-ink-600: #3a3a4d;
+  --color-ink-500: #5e5e75;
+  --color-ink-400: #8b8ba1;
+  --color-ink-300: #b5b5c7;
+  --color-ink-100: #ececf3;
+
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-info: #60a5fa;
+
+  --animate-rise: rise 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  --animate-pop: pop 0.5s cubic-bezier(0.2, 1.2, 0.3, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: scale(0.94);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-ink-950);
+  }
+  body {
+    @apply bg-ink-950 text-ink-100 font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  :focus-visible {
+    @apply outline-brand-400 outline-2 outline-offset-2;
+  }
+  button:not(:disabled),
+  [role="button"] {
+    cursor: pointer;
+  }
+  ::selection {
+    @apply bg-brand-600/60;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  /* Perforated edge between the two halves of a ticket. */
+  .ticket-notch {
+    mask-image:
+      radial-gradient(circle at 0 50%, transparent 10px, #000 10.5px),
+      radial-gradient(circle at 100% 50%, transparent 10px, #000 10.5px);
+    mask-size: 51% 100%;
+    mask-position: left, right;
+    mask-repeat: no-repeat;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
