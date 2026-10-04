@@ -24,6 +24,7 @@ class Identity:
     arrival_s: float = 0.0
     clients: int = 1
     alt_ip: str | None = None  # network_switch: the mobile-data IP used after login
+    network: str = "home"  # "home" | "campus" | "cgnat" (never sent; for the evaluator)
     session_token: str | None = None
     public_id: str | None = None
     entered: bool = False

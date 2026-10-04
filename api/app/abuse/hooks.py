@@ -33,7 +33,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import asyncpg
-from redis.asyncio import Redis
+from redis.asyncio import BlockingConnectionPool, Redis
+from redis.asyncio.retry import Retry
+from redis.backoff import NoBackoff
 from redis.exceptions import RedisError
 from starlette.requests import Request
 
@@ -57,6 +59,7 @@ from app.errors import OtpThrottled
 log = logging.getLogger("fairdrop.abuse")
 
 SEEN_TTL_S = 30 * 24 * 3600  # first-seen time of a verified user ("new account" rules)
+LIMITER_POOL = 100  # Redis connections per worker, for the limiter only
 _KEEP = object()
 
 RESCORE_SQL = """
@@ -115,6 +118,28 @@ def enforcing() -> bool:
     return os.environ.get("ABUSE_ENFORCE", "false").strip().lower() in ("1", "true", "yes")
 
 
+def _limiter_redis(settings: Settings) -> Redis:
+    """The limiter's own Redis client, separate from the backend's `Cache` pool.
+
+    The limiter runs on every request, including the flood it rejects. Sharing the backend's
+    pool (non-blocking, 100 connections per worker) let a 10,000-client flood exhaust it; the
+    backend's breaker then counted `MaxConnectionsError` as "Redis down" and sign-in answered
+    503 to genuine users (real-backend run, seed 101: 163 of 200 never signed in). A blocking
+    pool queues a burst for up to the Redis timeout instead of failing; a longer wait raises,
+    and the limiter falls back to its per-worker buckets (stricter, never allow-all)."""
+    t = settings.redis_timeout_ms / 1000
+    pool = BlockingConnectionPool.from_url(
+        settings.redis_url,
+        max_connections=LIMITER_POOL,
+        timeout=t,
+        socket_timeout=t,
+        socket_connect_timeout=t,
+        retry=Retry(NoBackoff(), 0),
+        decode_responses=True,
+    )
+    return Redis(connection_pool=pool)
+
+
 def _runtime_for(app: Any) -> Runtime | None:
     global _last
     if not enforcing():
@@ -129,7 +154,7 @@ def _runtime_for(app: Any) -> Runtime | None:
             settings,
             cache,
             Limiter(
-                cache.client,
+                _limiter_redis(settings),
                 session_secret=settings.session_secret.get_secret_value().encode(),
                 workers=settings.effective_workers,
             ),

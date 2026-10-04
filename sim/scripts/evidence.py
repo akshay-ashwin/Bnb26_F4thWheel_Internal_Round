@@ -5,6 +5,7 @@
 Suites: normal, genuine_retry, bot_flood, identity_farm, campus, network_switch, flash_crowd,
         repeated_attempts, multi_tab, token_replay, flash_crowd_50k (not in `all`),
         claim_stampede, identity_budget_sweep, final, all
+        real_smoke, real_main, real_final   (REAL backend only: --target http://api:8000 --reset)
 
 Every run starts from clean backend state: with the default `--target devstub` the dev stub
 container is recreated (one worker: its state is in memory) on its own Redis database, which is
@@ -18,6 +19,7 @@ Needs the stack up (`uv run fd up`) and a `.env` (`uv run fd secrets`).
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import subprocess
 import sys
@@ -29,6 +31,8 @@ STUB = "fairdrop-devstub"
 STUB_URL = f"http://{STUB}:8001"
 STUB_REDIS_DB = "2"
 MODES = ("fifo", "fair")
+RESET_REAL = False  # --reset: clean real-backend state before every run
+REAL_SEEDS = (101, 202, 303)
 
 
 def docker() -> str:
@@ -93,6 +97,56 @@ def fresh_stub() -> None:
     sys.exit("dev stub did not become healthy")
 
 
+def fresh_real() -> None:
+    """Clean real-backend state: new Postgres volume (re-migrated) and a new Redis container.
+    Without this a same-seed rerun inherits users, OTP counters and cluster sets."""
+    uv = shutil.which("uv") or sys.exit("uv not found (needed for `uv run fd reset-db`)")
+    sh([uv, "run", "fd", "reset-db"], quiet=True)
+    sh([docker(), "compose", "up", "-d", "--wait", "api"], quiet=True)
+
+
+def api_health(out: str, since: str) -> None:
+    """Count backend log lines by level and the failure kinds we care about, for one run."""
+    res = subprocess.run(  # noqa: S603 - argument list, no shell
+        [docker(), "compose", "logs", "--no-color", "--since", since, "api"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    lines = res.stdout.splitlines()
+    low = [x.lower() for x in lines]
+    # Access-log lines: every status >= 400 is logged (2xx are sampled), so 5xx counts are exact.
+    status_by_route: dict[str, int] = {}
+    for x in lines:
+        i = x.find("{")
+        try:
+            d = json.loads(x[i:]) if i >= 0 else {}
+        except ValueError:
+            continue
+        if isinstance(d.get("status"), int) and d["status"] >= 500:
+            k = f"{d['status']} {d.get('route')}"
+            status_by_route[k] = status_by_route.get(k, 0) + 1
+    summary = {
+        "server_errors_by_route": status_by_route,
+        "since": since,
+        "lines": len(lines),
+        "error": sum('"level": "error"' in x for x in low),
+        "warning": sum('"level": "warning"' in x for x in low),
+        "traceback": sum("traceback" in x for x in low),
+        "redis_mentions": sum("redis" in x and '"level": "info"' not in x for x in low),
+        "pool_or_postgres": sum(
+            ("pool" in x or "postgres" in x or "asyncpg" in x) and '"level": "info"' not in x
+            for x in low
+        ),
+        "rescored": [x.split('"msg": ')[-1][:80] for x in lines if "rescored" in x],
+        "samples": [x[:300] for x in lines if '"level": "error"' in x.lower()][:5],
+    }
+    path = ROOT / "sim" / out / "api_health.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+
+
 def sim(args: list[str]) -> int:
     return sh(
         [
@@ -113,7 +167,10 @@ def sim(args: list[str]) -> int:
 def run(target: str, scenario: str, mode: str, out: str, extra: list[str] | None = None) -> str:
     if target == "devstub":
         fresh_stub()
+    elif RESET_REAL:
+        fresh_real()
     base = STUB_URL if target == "devstub" else target
+    since = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     sim(
         [
             "run",
@@ -127,6 +184,8 @@ def run(target: str, scenario: str, mode: str, out: str, extra: list[str] | None
             *(extra or []),
         ]
     )
+    if target != "devstub":
+        api_health(out, since)
     return out
 
 
@@ -160,10 +219,20 @@ def main() -> int:
             "identity_budget_sweep",
             "final",
             "all",
+            "real_smoke",
+            "real_main",
+            "real_final",
         ],
     )
     ap.add_argument("--target", default="devstub", help="'devstub' or a base URL")
+    ap.add_argument(
+        "--reset",
+        action="store_true",
+        help="real backend only: `fd reset-db` + recreate api before every run",
+    )
     a = ap.parse_args()
+    global RESET_REAL  # noqa: PLW0603 - script-level switch
+    RESET_REAL = a.reset
     t = a.target
     base = STUB_URL if t == "devstub" else t
 
@@ -210,6 +279,22 @@ def main() -> int:
                     run(t, "genuine_retry", m, f"out/final_{seed}_{m}", ["--seed", str(seed)])
                 )
         compare(runs, "scorecard_final")
+    elif a.suite == "real_smoke":
+        if t == "devstub":
+            sys.exit("real_smoke needs --target http://api:8000")
+        if RESET_REAL:
+            fresh_real()
+        return sim(["smoke", "--base-url", t, "--out", "out/real_smoke"])
+    elif a.suite in ("real_main", "real_final"):
+        if t == "devstub":
+            sys.exit(f"{a.suite} needs --target http://api:8000 (this suite is real-backend only)")
+        seeds = REAL_SEEDS[:1] if a.suite == "real_main" else REAL_SEEDS
+        runs = [
+            run(t, "genuine_retry_real", m, f"out/real_{s}_{m}", ["--seed", str(s)])
+            for s in seeds
+            for m in MODES
+        ]
+        compare(runs, f"scorecard_{a.suite}")
     else:  # all
         runs = []
         for name in SCENARIOS:
