@@ -23,6 +23,11 @@ from app.config import Settings
 _FAILURES = (RedisConnectionError, RedisTimeoutError, OSError, TimeoutError)
 
 
+class RedisUnavailableError(Exception):
+    """Raised by `Cache.run` when no fallback was given and Redis is down (breaker open or a
+    connection-level failure). Callers that cannot work without Redis turn it into a 503."""
+
+
 class CircuitBreaker:
     def __init__(
         self, failures: int, cooloff_s: float, clock: Callable[[], float] = time.monotonic
@@ -80,22 +85,35 @@ class Cache:
         """For services that want to pick a path up front. No I/O."""
         return not self.breaker.is_open
 
+    @property
+    def available(self) -> bool:
+        return self.redis_available()
+
     async def run[T](
         self,
         op: Callable[[aioredis.Redis], Awaitable[T]],
         *,
-        fallback: Callable[[], Awaitable[T] | T],
+        fallback: Callable[[], Awaitable[T] | T] | None = None,
     ) -> T:
-        """Run one Redis operation; on breaker-open or connection failure use the fallback."""
+        """Run one Redis operation; on breaker-open or connection failure use the fallback.
+
+        Without a fallback the failure is raised as RedisUnavailableError instead.
+        """
         if not self.breaker.allow():
-            return await _call(fallback)
+            return await self._fallback(fallback)
         try:
             result = await op(self.client)
         except _FAILURES:
             self.breaker.record_failure()
-            return await _call(fallback)
+            return await self._fallback(fallback)
         self.breaker.record_success()
         return result
+
+    @staticmethod
+    async def _fallback[T](fallback: Callable[[], Awaitable[T] | T] | None) -> T:
+        if fallback is None:
+            raise RedisUnavailableError("redis unavailable")
+        return await _call(fallback)
 
     async def ping(self) -> bool:
         async def _ping(r: aioredis.Redis) -> bool:

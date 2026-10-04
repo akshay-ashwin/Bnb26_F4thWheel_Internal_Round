@@ -192,6 +192,7 @@ class Store:
         self.idem: dict[tuple[str, str], tuple[str, int, dict[str, Any]]] = {}
         self.used_jti: set[str] = set()
         self.counters: Counter[str] = Counter()
+        self.telemetry: dict[str, Any] = {}  # latest simulator telemetry (display only)
 
 
 S = Store()
@@ -569,6 +570,7 @@ async def claim(
     if d.sold >= d.capacity:
         if d.mode == "fifo":
             _sold_out_fifo(d)
+        S.counters["sold_out"] += 1
         return err(409, "SOLD_OUT", "no seats left")
     d.sold += 1
     e.seat_no, e.allocation_id, e.confirmed_at = d.sold, str(uuid.uuid4()), now
@@ -742,6 +744,7 @@ async def admin_integrity(
     seat_nos = [e.seat_no for e in seated]
     oversold = max(0, len(seated) - d.capacity)
     dup = len(seat_nos) - len(set(seat_nos))
+    allocated = sum(1 for e in d.entries.values() if e.status == "ALLOCATED")
     return ok(
         {
             "seats_total": d.capacity,
@@ -750,6 +753,17 @@ async def admin_integrity(
             "oversold": oversold,
             "duplicate_entries_with_seats": dup,
             "invariant_ok": oversold == 0 and dup == 0 and len(seated) == d.sold,
+            # docs/contract/additions.md: all 0 except the two counts, which equal `sold`
+            "extra": {
+                "capacity": d.capacity,
+                "allocations_count": len(seated),
+                "sold_without_allocation": 0,
+                "allocation_without_sold_seat": 0,
+                "entries_allocated_count": allocated,
+                "entries_allocated_mismatch": abs(allocated - len(seated)),
+                "sold_seat_entry_not_allocated": 0,
+                "free_seat_with_sold_at": 0,
+            },
         }
     )
 
@@ -815,6 +829,23 @@ async def admin_metrics(
                 "failed": S.counters["step_up_failed"],
             },
             "outcome_totals": {**OUTCOMES, **S.counters},
+            # docs/contract/additions.md (all in-process counters for the stub's lifetime)
+            "phase": d.phase,
+            "mode": d.mode,
+            "run_no": d.run_no,
+            "capacity": d.capacity,
+            "oversold": max(0, d.sold - d.capacity),
+            "invariant_ok": d.sold <= d.capacity,
+            "claims_ok": st["ALLOCATED"],
+            "claims_sold_out": S.counters["sold_out"],
+            "blocked_requests": OUTCOMES["rate_limited"],
+            "throttled_requests": S.counters["otp_throttled"],
+            "duplicate_requests": S.counters["duplicate"],
+            "rate_limited_by_layer": {
+                k.split(":", 1)[1]: v for k, v in OUTCOMES.items() if k.startswith("rate_limited:")
+            },
+            "window_s": 0,
+            "metrics_dropped": 0,
         }
     )
 
@@ -830,12 +861,18 @@ async def admin_draw_proof(
         return d
     if d.phase not in ("CLAIMING", "DONE", "DRAWN"):
         return err(409, "INVALID_TRANSITION", "draw has not happened")
+    drawn = [e for e in d.entries.values() if e.rank is not None]
+    ranked = sorted(drawn, key=lambda e: e.rank or 0)
     return ok(
         {
             "seed_commit": d.seed_commit,
             "seed": d.seed,
             "entry_set_hash": d.entry_set_hash,
             "algorithm": "HMAC_SHA256(seed, drop_id‖user_public_id) asc",
+            "drop_id": d.id,
+            "run_no": d.run_no,
+            "eligible_public_ids": sorted(e.public_id for e in ranked),
+            "ranked_public_ids": [e.public_id for e in ranked],
         }
     )
 
@@ -847,15 +884,11 @@ async def admin_draw_proof(
 async def sim_telemetry(
     request: Request, x_sim_key: str | None = Header(default=None)
 ) -> JSONResponse:
-    """Presentation only: stored under `sim:*`, never read by any decision code above."""
+    """Presentation only: kept in memory, never read by any decision code above. (The real
+    backend stores it in Redis from its admin service, the one module allowed to.)"""
     if not sim_mode():
         return err(404, "NOT_FOUND", "simulator telemetry is off")
     if not x_sim_key or not hmac.compare_digest(x_sim_key, SIM_KEY):
         return err(401, "UNAUTHENTICATED", "bad simulator key")
-    body = await _json(request)
-    if REDIS is not None:
-        try:
-            await REDIS.set("sim:latest", json.dumps(body), ex=3600)
-        except (RedisError, OSError):
-            pass
+    S.telemetry = await _json(request)
     return ok({})

@@ -41,7 +41,7 @@ LAYER_NAMES = {1: "L1", 2: "L2", 3: "L3"}
 class Decision:
     """The contract's `check(request) -> Decision`. `scope` is internal (metrics, logs)."""
 
-    outcome: Literal["allow", "reject"]
+    outcome: Literal["allow", "reject"] = "allow"
     layer: str | None = None
     code: str | None = None
     retry_after_ms: int | None = None
@@ -71,6 +71,11 @@ class Bucket:
     counts_violation: bool = False
     marks_slow: bool = False
     cost: float = 1.0
+
+
+def is_skipped(path: str) -> bool:
+    """Health, admin and simulator telemetry are never limited (docs/contract)."""
+    return path.startswith(EXEMPT_PREFIXES)
 
 
 def endpoint_group(method: str, path: str) -> str | None:
@@ -196,13 +201,15 @@ class Limiter:
         self._sha: str | None = None
         self.redis_failures = 0
 
-    async def check(self, rk: RequestKey, cfg: AbuseConfig) -> Decision:
+    async def check(self, rk: RequestKey, cfg: AbuseConfig, *, use_redis: bool = True) -> Decision:
+        """`use_redis=False` goes straight to the local buckets (the backend's circuit breaker
+        is open, so there is no point waiting for a Redis timeout)."""
         buckets = build_buckets(rk, cfg)
         if not buckets:
             return ALLOW
         th = cfg.thresholds
         anon = rk.session_id is None
-        if self.redis is not None:
+        if self.redis is not None and use_redis:
             try:
                 res = await self._eval(rk, buckets, th, check_cooldown=anon and cfg.on("L2"))
                 ok, layer, wait = int(res[0]), int(res[1]), int(res[2])

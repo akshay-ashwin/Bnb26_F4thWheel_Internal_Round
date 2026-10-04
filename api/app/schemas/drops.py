@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import Field
 
-from app.schemas.base import ApiRequest, ApiResponse, Mode, Phase
+from app.schemas.base import ApiObject, ApiRequest, ApiResponse, Mode, Phase
 
 
 class DropOut(ApiResponse):
@@ -37,6 +37,10 @@ class CreateDropOut(ApiResponse):
 
 class PhaseIn(ApiRequest):
     action: Literal["open", "close", "draw", "reset"]
+    mode: Mode | None = Field(
+        default=None,
+        description="Addition: only with `reset`. Switches the drop FIFO/Fair for the next run.",
+    )
 
 
 class PhaseOut(ApiResponse):
@@ -50,6 +54,9 @@ class IntegrityOut(ApiResponse):
     oversold: int
     duplicate_entries_with_seats: int
     invariant_ok: bool
+    extra: dict[str, int] = Field(
+        description="Addition: the other cross-table checks of v_drop_integrity (see additions.md)."
+    )
 
 
 class DrawProofOut(ApiResponse):
@@ -57,3 +64,32 @@ class DrawProofOut(ApiResponse):
     seed: str
     entry_set_hash: str
     algorithm: str = "HMAC_SHA256(seed, drop_id‖user_public_id) asc"
+    drop_id: UUID = Field(description="Addition.")
+    run_no: int = Field(description="Addition.")
+    eligible_public_ids: list[str] | None = Field(
+        default=None, description="Addition: public endpoint only, sorted."
+    )
+    ranked_public_ids: list[str] | None = Field(
+        default=None, description="Addition: public endpoint only, rank 1 first."
+    )
+
+
+class DropListItem(ApiObject):
+    id: UUID
+    name: str
+    mode: Mode
+    phase: Phase
+    run_no: int
+    capacity: int
+
+
+class DropListOut(ApiResponse):
+    """Addition: GET /admin/drops."""
+
+    drops: list[DropListItem]
+
+
+class SimLatestOut(ApiResponse):
+    """Addition: GET /admin/drops/{id}/sim (latest simulator telemetry, display only)."""
+
+    latest: dict[str, Any] | None

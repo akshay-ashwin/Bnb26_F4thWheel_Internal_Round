@@ -20,9 +20,12 @@ from urllib.parse import urlparse
 import asyncpg
 import httpx
 import pytest
+from fastapi import FastAPI
+from pydantic import SecretStr
 
 from app.config import Settings, get_settings
 from app.main import create_app
+from app.services.drops import public_cache
 
 TEST_REDIS_URL = "redis://redis:6379/15"
 DEAD_REDIS_URL = "redis://127.0.0.1:1/0"
@@ -106,12 +109,6 @@ async def _client(settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
 
 
 @pytest.fixture
-async def client(test_settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
-    async for c in _client(test_settings.model_copy(update={"sim_mode": True})):
-        yield c
-
-
-@pytest.fixture
 async def client_no_sim(test_settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
     async for c in _client(test_settings.model_copy(update={"sim_mode": False})):
         yield c
@@ -133,3 +130,61 @@ def admin_headers(base_settings: Settings) -> dict[str, str]:
 @pytest.fixture
 def sim_headers(base_settings: Settings) -> dict[str, str]:
     return {"X-Sim-Key": base_settings.sim_telemetry_key.get_secret_value()}
+
+
+# --- one shared application for the allocation tests (real Postgres through the restricted role,
+# real Redis database 15). Time-based knobs are shrunk; everything else is the production value. ---
+
+
+@pytest.fixture(scope="session")
+def redis_url() -> str:
+    return TEST_REDIS_URL
+
+
+@pytest.fixture(scope="session")
+def settings(base_settings: Settings, app_url: str) -> Settings:
+    return base_settings.model_copy(
+        update={
+            "database_url": SecretStr(app_url),
+            "redis_url": TEST_REDIS_URL,
+            "sim_mode": True,
+            "app_env": "dev",
+            "draw_grace_s": 0.0,
+            "run_jobs": False,
+            "redis_timeout_ms": 500,
+            "db_acquire_timeout_ms": 10_000,  # 1,000 in-process requests queue for 30 connections
+        }
+    )
+
+
+@pytest.fixture(scope="session")
+async def app(settings: Settings) -> AsyncIterator[FastAPI]:
+    application = create_app(settings)
+    async with application.router.lifespan_context(application):
+        yield application
+
+
+@pytest.fixture
+async def clean(db: asyncpg.Connection, app: FastAPI) -> AsyncIterator[None]:
+    """Empty tables (via `db`) and an empty test Redis database."""
+    app.state.metrics.reset()
+    await app.state.cache.client.flushdb()
+    app.state.metrics.reset()
+    public_cache.clear()
+    yield
+
+
+@pytest.fixture
+async def client(app: FastAPI, clean: None) -> AsyncIterator[httpx.AsyncClient]:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+        c.app = app  # type: ignore[attr-defined]
+        yield c
+
+
+@pytest.fixture
+async def client_own_app(test_settings: Settings) -> AsyncIterator[httpx.AsyncClient]:
+    """A client with its OWN app and pool (sim mode on). For tests that break the app on purpose,
+    for example by closing its pool; they must not touch the session-wide app that `client` uses."""
+    async for c in _client(test_settings.model_copy(update={"sim_mode": True})):
+        yield c

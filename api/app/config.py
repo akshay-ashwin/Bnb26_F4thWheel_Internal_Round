@@ -51,6 +51,29 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     cookie_domain: str = ""
 
+    # Behaviour knobs of the allocation backend (defaults are the production values).
+    trusted_proxy_cidrs: str = ""  # comma-separated; proxies whose X-Forwarded-For we trust
+    session_ttl_s: int = 24 * 3600
+    otp_ttl_s: int = 300
+    otp_dedupe_s: int = 30
+    otp_max_attempts: int = 5
+    token_ttl_s: int = 60
+    step_up_threshold: int = 60
+    step_up_max_attempts: int = 3
+    draw_grace_s: float = 3.0
+    run_jobs: bool = True
+    job_interval_s: float = 1.0
+    claim_lock_timeout_ms: int = 1000
+    claim_statement_timeout_ms: int = 2000
+
+    @property
+    def pool_acquire_timeout_s(self) -> float:
+        return self.db_acquire_timeout_ms / 1000
+
+    @property
+    def trusted_cidrs(self) -> tuple[str, ...]:
+        return tuple(c.strip() for c in self.trusted_proxy_cidrs.split(",") if c.strip())
+
     @property
     def effective_workers(self) -> int:
         return 1 if self.api_reload else self.uvicorn_workers

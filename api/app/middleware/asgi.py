@@ -15,13 +15,16 @@ import re
 import time
 import uuid
 
+from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from app.errors import internal_response
+from app import abuse
+from app.errors import AppError, error_response, internal_response
 from app.observability import metrics
 
 log = logging.getLogger("fairdrop.access")
 _VALID_ID = re.compile(r"^[A-Za-z0-9._-]{8,64}$")
+_STATUS_BY_CODE = {str(cls.code): cls.status for cls in AppError.__subclasses__()}
 
 
 def route_template(scope: Scope) -> str:
@@ -97,10 +100,38 @@ class RequestContextMiddleware:
 
 
 class AbuseLayersMiddleware:
-    """Slot for L1-L3 (Plan 12). Pass-through now."""
+    """The L1-L3 slot: calls the limiter once per HTTP request, before routing.
+
+    `app.abuse.check(request) -> Decision` decides (default: allow everything). A reject becomes
+    the contract envelope with Retry-After and is counted (`rate_limited`, `rate_limited:Lx`). A
+    limiter that raises fails open. Health, admin and simulator telemetry paths are never
+    limited. This path must never touch Postgres.
+    """
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        await self.app(scope, receive, send)
+        if scope["type"] != "http" or abuse.is_skipped(scope["path"]):
+            await self.app(scope, receive, send)
+            return
+        try:
+            decision = await abuse.check(Request(scope, receive))
+        except Exception:
+            log.exception("limiter failed; failing open")
+            decision = abuse.Decision()
+        if decision.outcome != "reject":
+            await self.app(scope, receive, send)
+            return
+        metrics = scope["app"].state.metrics
+        metrics.incr("rate_limited")
+        if decision.layer:
+            metrics.incr(f"rate_limited:{decision.layer}")
+        code = decision.code or "RATE_LIMITED"
+        response = error_response(
+            _STATUS_BY_CODE.get(code, 429),
+            code,
+            "Slow down",
+            retry_after_ms=decision.retry_after_ms,
+        )
+        await response(scope, receive, send)

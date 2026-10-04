@@ -173,19 +173,32 @@ docker compose run --rm --no-deps sim sh -c "uv sync --frozen && pytest"
 - Lean-mode cuts were overridden only where the brief asked (multi-bucket Lua, fallback,
   UA/ASN/prefix signals). R_TIMING (inter-request regularity) is not built.
 
-## 12. What Akshay's backend needs to provide (integration)
+## 12. Integration with Akshay's backend (merged with main on 2026-10-04)
 
-1. Wire the limiter into Plan 03's existing `AbuseLayersMiddleware` slot (`app/middleware/asgi.py`, inside `RequestContextMiddleware`, so 429s get `X-Request-ID`): build `Limiter(redis, session_secret=SESSION_SECRET)` and `ConfigStore(redis, persist=<write app_settings['abuse_config']>)` and delegate to `AbuseMiddleware`. Session tokens must stay `<uuid>.<b64url HMAC(SESSION_SECRET, uuid)>` (Plan 04); the limiter verifies them without I/O. Optional `user_resolver` (Redis session cache) enables the per-user L3 bucket. The existing `PUT /api/admin/abuse/config` route should call `store.update(body, contract=True)` and return `store.current().contract_dict()` + `server_time` (do not mount `app.abuse.router`, which serves the stub only). Thresholds are flat numbers, as the frozen `AbuseConfigIn` requires.
-2. Call the hooks: `risk.otp_guard` before issuing an OTP (→ `429 OTP_THROTTLED` + Retry-After); `risk.record_verify(user_id, latency_ms)` after verify; `risk.score_entry(...)` after inserting an entry (insert first, then score); `risk.rescore(...)` at close before ranking; step-up for winners with score ≥ `step_up_score`.
-3. `/me` must triple `poll_after_ms` when Redis key `slow:{session_id}` exists.
-4. `X-Sim-Client-IP` honoured only when SIM_MODE=true; `/me` sets `entry.dev_otp` for STEP_UP_REQUIRED in SIM_MODE (null otherwise, Plan 03 contract).
-5. FIFO sell-out must move remaining REGISTERED entries to NOT_SELECTED (design §13) or clients keep polling.
-6. Size L1 pools from a real load measurement (defaults are placeholders).
-7. Export rows exactly as the contract (risk_flags as a list of strings), and `/integrity`.
+Akshay's backend calls five functions in `app.abuse` (his placeholders allowed everything). They are now implemented in `api/app/abuse/hooks.py` on top of the real limiter, OTP guard and risk scoring; nothing in his files changed.
 
-## 13. Next steps when you return
+| Hook (called by) | Implementation |
+| --- | --- |
+| `check(request)` (`AbuseLayersMiddleware`, before routing) | L1-L3 Lua buckets. Client IP from `app.netutil.client_ip`, session id verified from the token without I/O. Reads the backend's Redis circuit breaker but never feeds it; Redis errors fall back to per-worker buckets. |
+| `otp_request_guard` (POST /auth/otp/request) | L6 per phone, device, IP, /24 and sequential prefix (his `phone_prefix`, 6 national digits). Raises `OtpThrottled`. |
+| `on_identity_verified` (after verify) | Fast-OTP signal and first-seen time (`abuse:seen:{user}`, used for the "new account" rules). |
+| `score_entry` (before the entry insert) | L7 cluster sets and score. Unknown first-seen counts as an old account; a missing device id never clusters users together. |
+| `rescore_eligible(conn, drop_id)` (draw transaction) | Re-scores REGISTERED entries from the final sets. Score becomes max(old, new), flags the union; never rank or eligibility. |
 
-1. Review and merge `saanvi-attacks` (I did not merge or touch `main`).
-2. Send Akshay section 12; when Plans 04/07/08/09 land, run `python sim/scripts/evidence.py all --target http://api:8000`.
+Config: his `PUT /api/admin/abuse/config` writes `{layers, thresholds}` to Redis `abuse:config`; the hooks re-read it at most once per second and apply known keys only.
+
+**Switch: `ABUSE_ENFORCE=true`** (off by default). While off, every hook behaves exactly like his placeholders. It is off because 19 of his 244 tests assume no limiting: hundreds of users from one test IP, repeated codes for one phone, instant sign-ins (fast OTP). With it on, those tests fail by design (429 / OTP_THROTTLED / a 15-point fast-OTP score). `api/tests/abuse/test_hooks.py` runs the real app with it on.
+
+To turn it on: give each simulated user in his load tests its own `X-Sim-Client-IP` (the settings fixture has SIM_MODE on), relax the few tests that expect no throttling, then add `ABUSE_ENFORCE=true` to `.env` and recreate the api container.
+
+Still open on the backend side:
+1. `/me` should triple `poll_after_ms` while Redis key `slow:{session_id}` exists (the limiter sets it).
+2. Size the L1 pools from a real load measurement (defaults are placeholders).
+3. Optional: a `user_resolver` (Redis session cache) would enable the per-user L3 bucket.
+
+## 13. Next steps
+
+1. Agree with Akshay when to switch `ABUSE_ENFORCE` on (section 12).
+2. Run `python sim/scripts/evidence.py all --target http://api:8000` against the real backend with the switch on.
 3. Decide the L6/L7 device-threshold interaction (R_DEVICE > 3 vs L6's 3 phones/device).
 4. Re-run the 10k sweep and the 50k crowd on the real 4-worker backend; the stub's ceiling is not the system's.

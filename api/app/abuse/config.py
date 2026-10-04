@@ -25,6 +25,9 @@ from redis.exceptions import RedisError
 
 CONFIG_KEY = "abuse:cfg"
 VERSION_KEY = "abuse:cfg:ver"
+# What the backend's PUT /api/admin/abuse/config writes: the contract document
+# {layers, thresholds} (Postgres app_settings stays the source of truth).
+BACKEND_KEY = "abuse:config"
 REFRESH_S = 1.0
 
 LAYERS = tuple(f"L{i}" for i in range(1, 9))
@@ -123,6 +126,28 @@ class AbuseConfig:
         return self.merged(
             {"layers": payload["layers"], "thresholds": payload.get("thresholds", {})}
         )
+
+    def applied_contract(self, doc: Any) -> AbuseConfig:
+        """Apply a stored contract document leniently: known layer switches and known numeric
+        thresholds take effect, anything else is ignored. For documents that were already
+        accepted by the backend's route (which validates only the shape), so a stored threshold
+        this module does not use can never break the limiter."""
+        new = AbuseConfig(
+            dict(self.layers),
+            copy.deepcopy(self.limits),
+            copy.deepcopy(self.thresholds),
+            copy.deepcopy(self.rules),
+        )
+        if not isinstance(doc, dict):
+            return new
+        layers, thresholds = doc.get("layers"), doc.get("thresholds")
+        for k, v in (layers if isinstance(layers, dict) else {}).items():
+            if k in new.layers and isinstance(v, bool):
+                new.layers[k] = v
+        for k, v in (thresholds if isinstance(thresholds, dict) else {}).items():
+            if k in new.thresholds and isinstance(v, int | float) and not isinstance(v, bool):
+                new.thresholds[k] = v
+        return new
 
     def to_dict(self) -> dict[str, Any]:
         return {

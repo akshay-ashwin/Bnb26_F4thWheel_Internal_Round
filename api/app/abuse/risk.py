@@ -53,18 +53,24 @@ async def otp_guard(
     redis: Redis | None,
     cfg: AbuseConfig,
     *,
-    phone_e164: str,
     phone_hash: str,
     device_id: str,
     ip: str,
+    phone_e164: str = "",
+    prefix: str | None = None,
 ) -> Decision | None:
-    """Return a reject Decision (`OTP_THROTTLED`) or None. Redis errors fail open (counted)."""
+    """Return a reject Decision (`OTP_THROTTLED`) or None. Redis errors fail open (counted).
+
+    `prefix` is the sequential-number bucket. The backend passes its own (`phone_prefix`, the
+    leading national digits) because it never hands the raw number to this module; otherwise
+    it is the number without its last 3 digits."""
     if redis is None or not cfg.on("L6"):
         return None
     th = cfg.thresholds
     now = time.time()
     net = net24_of(ip)
-    prefix = phone_e164[:-3] if len(phone_e164) > 6 else phone_e164
+    if prefix is None:
+        prefix = phone_e164[:-3] if len(phone_e164) > 6 else phone_e164
     try:
         blocked = await redis.pttl(f"otp:pfxblock:{prefix}")
         if blocked > 0:

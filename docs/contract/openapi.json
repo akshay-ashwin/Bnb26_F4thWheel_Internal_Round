@@ -180,9 +180,50 @@
             "title": "Algorithm",
             "type": "string"
           },
+          "drop_id": {
+            "description": "Addition.",
+            "format": "uuid",
+            "title": "Drop Id",
+            "type": "string"
+          },
+          "eligible_public_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Addition: public endpoint only, sorted.",
+            "title": "Eligible Public Ids"
+          },
           "entry_set_hash": {
             "title": "Entry Set Hash",
             "type": "string"
+          },
+          "ranked_public_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Addition: public endpoint only, rank 1 first.",
+            "title": "Ranked Public Ids"
+          },
+          "run_no": {
+            "description": "Addition.",
+            "title": "Run No",
+            "type": "integer"
           },
           "seed": {
             "title": "Seed",
@@ -203,9 +244,87 @@
           "seed_commit",
           "seed",
           "entry_set_hash",
-          "algorithm"
+          "algorithm",
+          "drop_id",
+          "run_no",
+          "eligible_public_ids",
+          "ranked_public_ids"
         ],
         "title": "DrawProofOut",
+        "type": "object"
+      },
+      "DropListItem": {
+        "properties": {
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "fair",
+              "fifo"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "SCHEDULED",
+              "OPEN",
+              "CLOSED",
+              "DRAWN",
+              "CLAIMING",
+              "DONE"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "run_no": {
+            "title": "Run No",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "mode",
+          "phase",
+          "run_no",
+          "capacity"
+        ],
+        "title": "DropListItem",
+        "type": "object"
+      },
+      "DropListOut": {
+        "description": "Addition: GET /admin/drops.",
+        "properties": {
+          "drops": {
+            "items": {
+              "$ref": "#/components/schemas/DropListItem"
+            },
+            "title": "Drops",
+            "type": "array"
+          },
+          "server_time": {
+            "description": "ISO 8601 UTC with milliseconds, e.g. 2026-10-04T10:15:30.123Z",
+            "title": "Server Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_time",
+          "drops"
+        ],
+        "title": "DropListOut",
         "type": "object"
       },
       "DropOut": {
@@ -470,6 +589,14 @@
             "title": "Duplicate Entries With Seats",
             "type": "integer"
           },
+          "extra": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Addition: the other cross-table checks of v_drop_integrity (see additions.md).",
+            "title": "Extra",
+            "type": "object"
+          },
           "free": {
             "title": "Free",
             "type": "integer"
@@ -503,7 +630,8 @@
           "free",
           "oversold",
           "duplicate_entries_with_seats",
-          "invariant_ok"
+          "invariant_ok",
+          "extra"
         ],
         "title": "IntegrityOut",
         "type": "object"
@@ -716,6 +844,26 @@
             "title": "Allocated",
             "type": "integer"
           },
+          "blocked_requests": {
+            "title": "Blocked Requests",
+            "type": "integer"
+          },
+          "capacity": {
+            "title": "Capacity",
+            "type": "integer"
+          },
+          "claims_ok": {
+            "title": "Claims Ok",
+            "type": "integer"
+          },
+          "claims_sold_out": {
+            "title": "Claims Sold Out",
+            "type": "integer"
+          },
+          "duplicate_requests": {
+            "title": "Duplicate Requests",
+            "type": "integer"
+          },
           "entries": {
             "title": "Entries",
             "type": "integer"
@@ -728,8 +876,24 @@
             "title": "Flagged Entries",
             "type": "integer"
           },
+          "invariant_ok": {
+            "title": "Invariant Ok",
+            "type": "boolean"
+          },
           "latency": {
             "$ref": "#/components/schemas/Latency"
+          },
+          "metrics_dropped": {
+            "title": "Metrics Dropped",
+            "type": "integer"
+          },
+          "mode": {
+            "enum": [
+              "fair",
+              "fifo"
+            ],
+            "title": "Mode",
+            "type": "string"
           },
           "offers": {
             "title": "Offers",
@@ -746,6 +910,32 @@
             "title": "Outcomes Series",
             "type": "object"
           },
+          "oversold": {
+            "title": "Oversold",
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "SCHEDULED",
+              "OPEN",
+              "CLOSED",
+              "DRAWN",
+              "CLAIMING",
+              "DONE"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "rate_limited_by_layer": {
+            "additionalProperties": {
+              "items": {
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "title": "Rate Limited By Layer",
+            "type": "object"
+          },
           "remaining": {
             "title": "Remaining",
             "type": "integer"
@@ -757,6 +947,10 @@
             "title": "Rps Series",
             "type": "array"
           },
+          "run_no": {
+            "title": "Run No",
+            "type": "integer"
+          },
           "server_time": {
             "description": "ISO 8601 UTC with milliseconds, e.g. 2026-10-04T10:15:30.123Z",
             "title": "Server Time",
@@ -764,6 +958,14 @@
           },
           "step_ups": {
             "$ref": "#/components/schemas/StepUps"
+          },
+          "throttled_requests": {
+            "title": "Throttled Requests",
+            "type": "integer"
+          },
+          "window_s": {
+            "title": "Window S",
+            "type": "integer"
           }
         },
         "required": [
@@ -778,7 +980,21 @@
           "allocated",
           "remaining",
           "flagged_entries",
-          "step_ups"
+          "step_ups",
+          "phase",
+          "mode",
+          "run_no",
+          "capacity",
+          "oversold",
+          "invariant_ok",
+          "claims_ok",
+          "claims_sold_out",
+          "blocked_requests",
+          "throttled_requests",
+          "duplicate_requests",
+          "rate_limited_by_layer",
+          "window_s",
+          "metrics_dropped"
         ],
         "title": "MetricsOut",
         "type": "object"
@@ -909,6 +1125,22 @@
             ],
             "title": "Action",
             "type": "string"
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "fair",
+                  "fifo"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Addition: only with `reset`. Switches the drop FIFO/Fair for the next run.",
+            "title": "Mode"
           }
         },
         "required": [
@@ -1001,6 +1233,34 @@
         "title": "RpsPoint",
         "type": "object"
       },
+      "SimLatestOut": {
+        "description": "Addition: GET /admin/drops/{id}/sim (latest simulator telemetry, display only).",
+        "properties": {
+          "latest": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest"
+          },
+          "server_time": {
+            "description": "ISO 8601 UTC with milliseconds, e.g. 2026-10-04T10:15:30.123Z",
+            "title": "Server Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "server_time",
+          "latest"
+        ],
+        "title": "SimLatestOut",
+        "type": "object"
+      },
       "StepUpIn": {
         "additionalProperties": false,
         "properties": {
@@ -1073,6 +1333,18 @@
             },
             "title": "Clients By Label",
             "type": "object"
+          },
+          "fairness_live": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fairness Live"
           },
           "identities_by_label": {
             "additionalProperties": {
@@ -1148,6 +1420,70 @@
   "openapi": "3.1.0",
   "paths": {
     "/api/admin/abuse/config": {
+      "get": {
+        "operationId": "adminGetAbuseConfig",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AbuseConfigOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "SERVICE_UNAVAILABLE"
+          }
+        },
+        "security": [
+          {
+            "AdminKey": []
+          }
+        ],
+        "summary": "Get Abuse Config",
+        "tags": [
+          "admin"
+        ]
+      },
       "put": {
         "operationId": "adminAbuseConfig",
         "requestBody": {
@@ -1224,6 +1560,71 @@
       }
     },
     "/api/admin/drops": {
+      "get": {
+        "description": "Lets the dashboard pick the drop without hard-coding ids.",
+        "operationId": "adminListDrops",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DropListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "SERVICE_UNAVAILABLE"
+          }
+        },
+        "security": [
+          {
+            "AdminKey": []
+          }
+        ],
+        "summary": "List Drops",
+        "tags": [
+          "admin"
+        ]
+      },
       "post": {
         "operationId": "adminCreateDrop",
         "requestBody": {
@@ -1789,6 +2190,85 @@
         ]
       }
     },
+    "/api/admin/drops/{drop_id}/sim": {
+      "get": {
+        "description": "The latest simulator telemetry (\"ground truth\") for the dashboard. Display only.",
+        "operationId": "adminSimLatest",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drop_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Drop Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimLatestOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "UNAUTHENTICATED"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "SERVICE_UNAVAILABLE"
+          }
+        },
+        "security": [
+          {
+            "AdminKey": []
+          }
+        ],
+        "summary": "Sim Latest",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/auth/otp/request": {
       "post": {
         "description": "Same phone within 30 s returns the same request_id. dev_otp only when SIM_MODE.",
@@ -2181,6 +2661,90 @@
           }
         ],
         "summary": "Claim",
+        "tags": [
+          "public"
+        ]
+      }
+    },
+    "/api/drops/{drop_id}/draw-proof": {
+      "get": {
+        "description": "Addition: the proof plus the sorted eligible public ids and the ranked order, so anyone can\nre-run the draw (docs/contract/draw.md). Only after the draw.",
+        "operationId": "publicDrawProof",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "drop_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Drop Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawProofOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "VALIDATION_ERROR"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "NOT_FOUND"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INVALID_TRANSITION"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "INTERNAL"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "SERVICE_UNAVAILABLE"
+          }
+        },
+        "summary": "Public Draw Proof",
         "tags": [
           "public"
         ]
