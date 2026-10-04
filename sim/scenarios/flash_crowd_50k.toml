@@ -1,0 +1,15 @@
+# Final load evidence: 50,000 LOGICAL genuine clients, 80% arriving in the first 10 s, against the
+# one-worker dev stub. The scorecard reports ACHIEVED requests/s and latency next to the 50,000
+# label; logical clients are not concurrent requests. Long windows so arrival time never matters.
+name = "flash_crowd_50k"
+seed = 42
+capacity = 500
+registration_s = 150
+claim_window_s = 60
+timeout_s = 30
+
+[humans]
+count = 50000
+arrival = { type = "burst", burst_frac = 0.8, burst_s = 10, spread_s = 60 }
+second_tab_p = 0.02
+refresh_p = 0.02

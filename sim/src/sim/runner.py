@@ -130,11 +130,21 @@ async def admin(
     key: str,
     body: dict[str, Any] | None = None,
 ) -> Any:
-    async with http.request(method, path, json=body, headers={"X-Admin-Key": key}) as r:
-        r.raise_for_status()
-        if path.endswith("/export"):
-            return await r.text()
-        return await r.json(content_type=None)
+    """Admin call. Under attack the server queues every request, so control calls run on their
+    own long-timeout session and get up to 3 tries instead of crashing the run."""
+    for attempt in range(3):
+        try:
+            async with http.request(method, path, json=body, headers={"X-Admin-Key": key}) as r:
+                if r.status >= 500 and attempt < 2:
+                    continue
+                r.raise_for_status()
+                if path.endswith("/export"):
+                    return await r.text()
+                return await r.json(content_type=None)
+        except (TimeoutError, aiohttp.ServerDisconnectedError, aiohttp.ClientOSError):
+            if attempt == 2:
+                raise
+    raise RuntimeError(f"admin call failed: {method} {path}")
 
 
 async def run(
@@ -154,9 +164,10 @@ async def run(
     timeout = float(sc.get("timeout_s", 15))
     hclient = make_session(base_url, max(50, min(2000, len(humans) * 2)), timeout)
     bclient = make_session(base_url, int(sc.get("bot_connections", 1000)), timeout)
-    async with hclient, bclient:
+    aclient = make_session(base_url, 4, 120)  # admin and control calls only
+    async with hclient, bclient, aclient:
         d = await admin(
-            hclient,
+            aclient,
             "POST",
             "/api/admin/drops",
             admin_key,
@@ -185,7 +196,7 @@ async def run(
         prestage_off = any(a.get("prestage_l6_off") for a in acfg.values())
         if prestage_off:
             await admin(
-                hclient, "PUT", "/api/admin/abuse/config", admin_key, {"layers": {"L6": False}}
+                aclient, "PUT", "/api/admin/abuse/config", admin_key, {"layers": {"L6": False}}
             )
         sem = asyncio.Semaphore(200)
         t_login = time.time()
@@ -201,7 +212,7 @@ async def run(
         await asyncio.gather(*(bot_login(b) for b in bots))
         if prestage_off:
             await admin(
-                hclient, "PUT", "/api/admin/abuse/config", admin_key, {"layers": {"L6": True}}
+                aclient, "PUT", "/api/admin/abuse/config", admin_key, {"layers": {"L6": True}}
             )
         login_s = time.time() - t_login
 
@@ -252,19 +263,19 @@ async def run(
                     )
 
         tel = (
-            asyncio.create_task(_telemetry(hclient, telemetry_key, stats, pop, ctx))
+            asyncio.create_task(_telemetry(aclient, telemetry_key, stats, pop, ctx))
             if telemetry_key
             else None
         )
         await asyncio.sleep(max(0.0, ctx["t_open"] - time.time()))
         await admin(
-            hclient, "POST", f"/api/admin/drops/{drop_id}/phase", admin_key, {"action": "open"}
+            aclient, "POST", f"/api/admin/drops/{drop_id}/phase", admin_key, {"action": "open"}
         )
         ctx["phase"] = "OPEN"
         await asyncio.sleep(float(sc.get("registration_s", 60)))
         try:
             await admin(
-                hclient, "POST", f"/api/admin/drops/{drop_id}/phase", admin_key, {"action": "close"}
+                aclient, "POST", f"/api/admin/drops/{drop_id}/phase", admin_key, {"action": "close"}
             )
         except aiohttp.ClientResponseError as exc:
             if not (mode == "fifo" and exc.status == 409):  # FIFO may already be sold out (DONE)
@@ -272,7 +283,7 @@ async def run(
         ctx["phase"] = "CLOSED"
         if mode == "fair":
             await admin(
-                hclient, "POST", f"/api/admin/drops/{drop_id}/phase", admin_key, {"action": "draw"}
+                aclient, "POST", f"/api/admin/drops/{drop_id}/phase", admin_key, {"action": "draw"}
             )
             ctx["phase"] = "CLAIMING"
             await asyncio.sleep(float(sc.get("claim_window_s", 120)) + 2)
@@ -280,12 +291,14 @@ async def run(
         await asyncio.wait(tasks, timeout=timeout + 5)
         for t in tasks:
             t.cancel()
+        # let cancelled clients unwind before their HTTP sessions close
+        await asyncio.gather(*tasks, return_exceptions=True)
         if tel is not None:
             tel.cancel()
         t_end = time.time()
-        export_text = await admin(hclient, "GET", f"/api/admin/drops/{drop_id}/export", admin_key)
-        integrity = await admin(hclient, "GET", f"/api/admin/drops/{drop_id}/integrity", admin_key)
-        metrics = await admin(hclient, "GET", f"/api/admin/drops/{drop_id}/metrics", admin_key)
+        export_text = await admin(aclient, "GET", f"/api/admin/drops/{drop_id}/export", admin_key)
+        integrity = await admin(aclient, "GET", f"/api/admin/drops/{drop_id}/integrity", admin_key)
+        metrics = await admin(aclient, "GET", f"/api/admin/drops/{drop_id}/metrics", admin_key)
 
     out.mkdir(parents=True, exist_ok=True)
     (out / "export.ndjson").write_text(export_text, encoding="utf-8")

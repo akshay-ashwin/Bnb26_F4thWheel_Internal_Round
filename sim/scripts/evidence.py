@@ -3,8 +3,8 @@
   python sim/scripts/evidence.py <suite> [--target devstub|URL]
 
 Suites: normal, genuine_retry, bot_flood, identity_farm, campus, network_switch, flash_crowd,
-        repeated_attempts, multi_tab, token_replay, claim_stampede, identity_budget_sweep,
-        final, all
+        repeated_attempts, multi_tab, token_replay, flash_crowd_50k (not in `all`),
+        claim_stampede, identity_budget_sweep, final, all
 
 Every run starts from clean backend state: with the default `--target devstub` the dev stub
 container is recreated (one worker: its state is in memory) on its own Redis database, which is
@@ -151,7 +151,15 @@ SCENARIOS = (
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "suite", choices=[*SCENARIOS, "claim_stampede", "identity_budget_sweep", "final", "all"]
+        "suite",
+        choices=[
+            *SCENARIOS,
+            "flash_crowd_50k",
+            "claim_stampede",
+            "identity_budget_sweep",
+            "final",
+            "all",
+        ],
     )
     ap.add_argument("--target", default="devstub", help="'devstub' or a base URL")
     a = ap.parse_args()
@@ -163,7 +171,7 @@ def main() -> int:
         compare(out, f"scorecard_{name}")
         return out
 
-    if a.suite in SCENARIOS:
+    if a.suite in SCENARIOS or a.suite == "flash_crowd_50k":
         pair(a.suite)
     elif a.suite == "claim_stampede":
         for m in MODES:

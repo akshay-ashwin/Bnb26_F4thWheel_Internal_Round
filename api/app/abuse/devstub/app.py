@@ -565,7 +565,7 @@ async def claim(
         )
     if d.sold >= d.capacity:
         if d.mode == "fifo":
-            d.phase = "DONE"
+            _sold_out_fifo(d)
         return err(409, "SOLD_OUT", "no seats left")
     d.sold += 1
     e.seat_no, e.allocation_id, e.confirmed_at = d.sold, uuid.uuid4().hex, now
@@ -573,11 +573,19 @@ async def claim(
     d.seats[e.seat_no] = e.entry_id
     S.used_jti.add(str(claims.get("jti")))
     if d.mode == "fifo" and d.sold >= d.capacity:
-        d.phase = "DONE"
+        _sold_out_fifo(d)
     out = _alloc_body(e)
     if cfg.on("L5"):
         S.idem[ikey] = (e.entry_id, 200, out)
     return ok(out)
+
+
+def _sold_out_fifo(d: Drop) -> None:
+    """Design section 13: when a FIFO drop sells out, REGISTERED entries become NOT_SELECTED."""
+    d.phase = "DONE"
+    for e in d.entries.values():
+        if e.status == "REGISTERED":
+            e.status = "NOT_SELECTED"
 
 
 def _alloc_body(e: Entry) -> dict[str, Any]:
@@ -681,6 +689,8 @@ async def admin_phase(
         d.phase, d.reg_opens_at, d.reg_closes_at = "OPEN", now, now + d.window_s
     elif action == "close" and d.phase == "OPEN":
         d.phase, d.reg_closes_at = ("CLOSED" if d.mode == "fair" else "DONE"), now
+        if d.mode == "fifo":
+            _sold_out_fifo(d)
         if d.mode == "fair":
             ids = sorted(e.public_id for e in d.entries.values())
             d.entry_set_hash = hashlib.sha256("\n".join(ids).encode()).hexdigest()

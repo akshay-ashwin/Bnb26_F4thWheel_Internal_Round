@@ -43,6 +43,16 @@ async def run_bot_client(
     token: str | None = None
     repeats = 0
     while not ctx["done"].is_set() and time.time() < end:
+        if (
+            kind == "farm"
+            and ctx["mode"] == "fair"
+            and ident.entered
+            and ctx["phase"] in ("SCHEDULED", "OPEN", "CLOSED")
+        ):
+            # A farm gains nothing by polling before the draw (it can read the phase from the
+            # public GET /drops); it waits quietly, then polls at its configured rate.
+            await asyncio.sleep(0.5)
+            continue
         if kind == "anon":
             r = await (api.enter(ident) if rng.random() < 0.5 else api.me(ident))
         elif ident.seat_no is not None and kind != "duplicate":
@@ -53,6 +63,11 @@ async def run_bot_client(
                 repeats += 1
             else:
                 r = await api.me(ident)
+                if r.ok and (
+                    r.body.get("phase") == "DONE"
+                    or (r.body.get("entry") or {}).get("status") in ("NOT_SELECTED", "ALLOCATED")
+                ):
+                    return  # sold out or won: nothing left to race for
                 token = ((r.body.get("entry") or {}).get("admission_token")) if r.ok else None
                 if token:
                     r = await api.claim(ident, token)
