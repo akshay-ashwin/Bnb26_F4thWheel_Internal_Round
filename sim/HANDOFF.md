@@ -1,6 +1,6 @@
 # Handoff — Saanvi lane (abuse protection, simulator, fairness evidence)
 
-Branch `saanvi-attacks`. Every number below was measured on this machine (Windows 11, Docker
+Branch `saanvi-attacks` (contains main up to Plan 03). Every number below was measured on this machine (Windows 11, Docker
 Desktop, 12 CPUs) against the **dev stub** (`api/app/abuse/devstub`), a one-worker, in-memory
 implementation of the frozen contract with the real L1–L3 limiter, L6 guard and L7 scoring in
 front. It is NOT Akshay's backend; his real endpoints (Plans 03–11) do not exist yet. Re-run the
@@ -21,7 +21,7 @@ same commands with `--target http://api:8000` once they do.
 ## 2. What changed (files)
 
 - `api/app/abuse/` (my lane): `buckets.lua`, `limiter.py`, `middleware.py`, `config.py`, `router.py`, `risk.py`, `__init__.py`, `devstub/` (dev-only, never imported by `app.main`).
-- `api/tests/abuse/`: limiter (12), risk (10), dev stub flows (4), isolation (2) = 28 new tests.
+- `api/tests/abuse/`: limiter (12), risk (10), dev stub flows (4), contract conformance against the Plan 03 OpenAPI (3), isolation (2) = 31 new tests.
 - `sim/`: `src/sim/{model,api,runner,evaluator,stampede,cli}.py`, `src/sim/clients/{human,bot}.py`, `scenarios/*.toml` (13), `scripts/evidence.py`, tests (8), `README.md`, this file, `evidence/` (summary outputs), `pyproject.toml`/`uv.lock` (aiohttp replaces httpx).
 - Nothing outside `api/app/abuse`, `api/tests/abuse` and `sim/`. No contract change.
 
@@ -140,8 +140,9 @@ timeouts, p99 15.4 s). Below ~3,300 active attacker sessions it was 100%.
 
 ## 9. Tests
 
-- api: 39 passed (11 existing + 28 new), ruff + mypy strict clean. Limiter tests run against the
-  real Redis container.
+- api (merged with main incl. Plan 03): 137 passed (`uv run fd test-api`), ruff + mypy strict
+  clean. Limiter tests run against the real Redis container. The dev stub is checked against the
+  frozen OpenAPI response schemas.
 - sim: 8 passed, ruff + mypy strict clean. Includes the wire-capture label-isolation test and a
   regression test for counting sign-in 429s.
 
@@ -174,10 +175,10 @@ docker compose run --rm --no-deps sim sh -c "uv sync --frozen && pytest"
 
 ## 12. What Akshay's backend needs to provide (integration)
 
-1. Install the middleware: `install_abuse(app, Limiter(redis, session_secret=SESSION_SECRET), ConfigStore(redis, persist=<write app_settings['abuse_config']>))` and mount `config_router(store, require_admin)`. Session tokens must stay `<uuid>.<b64url HMAC(SESSION_SECRET, uuid)>` (Plan 04) — the limiter verifies them without I/O. Optional `user_resolver` (Redis session cache) enables the per-user L3 bucket.
+1. Wire the limiter into Plan 03's existing `AbuseLayersMiddleware` slot (`app/middleware/asgi.py`, inside `RequestContextMiddleware`, so 429s get `X-Request-ID`): build `Limiter(redis, session_secret=SESSION_SECRET)` and `ConfigStore(redis, persist=<write app_settings['abuse_config']>)` and delegate to `AbuseMiddleware`. Session tokens must stay `<uuid>.<b64url HMAC(SESSION_SECRET, uuid)>` (Plan 04); the limiter verifies them without I/O. Optional `user_resolver` (Redis session cache) enables the per-user L3 bucket. The existing `PUT /api/admin/abuse/config` route should call `store.update(body, contract=True)` and return `store.current().contract_dict()` + `server_time` (do not mount `app.abuse.router`, which serves the stub only). Thresholds are flat numbers, as the frozen `AbuseConfigIn` requires.
 2. Call the hooks: `risk.otp_guard` before issuing an OTP (→ `429 OTP_THROTTLED` + Retry-After); `risk.record_verify(user_id, latency_ms)` after verify; `risk.score_entry(...)` after inserting an entry (insert first, then score); `risk.rescore(...)` at close before ranking; step-up for winners with score ≥ `step_up_score`.
 3. `/me` must triple `poll_after_ms` when Redis key `slow:{session_id}` exists.
-4. `X-Sim-Client-IP` honoured only when SIM_MODE=true; `/me` exposes `entry.dev_otp` for STEP_UP_REQUIRED in SIM_MODE (Plan 11).
+4. `X-Sim-Client-IP` honoured only when SIM_MODE=true; `/me` sets `entry.dev_otp` for STEP_UP_REQUIRED in SIM_MODE (null otherwise, Plan 03 contract).
 5. FIFO sell-out must move remaining REGISTERED entries to NOT_SELECTED (design §13) or clients keep polling.
 6. Size L1 pools from a real load measurement (defaults are placeholders).
 7. Export rows exactly as the contract (risk_flags as a list of strings), and `/integrity`.

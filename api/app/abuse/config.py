@@ -1,7 +1,10 @@
 """Abuse configuration: layer switches, bucket limits, thresholds and risk rules.
 
-Shape of `PUT /admin/abuse/config`: `{layers: {L1..L8: bool}, thresholds: {...}}`; `limits` and
-`rules` are accepted too. The document is persisted through an optional `persist` callback
+The contract document (`PUT /api/admin/abuse/config`, frozen in Plan 03) is exactly
+`{layers: {L1..L8: bool}, thresholds: {name: number}}` — see `contract_dict()` and
+`merged_contract()`. `limits` (bucket sizes) and `rules` (L7 rule switches and points) are
+server-side settings that are persisted with it but never accepted or returned through the
+contract endpoint. The document is persisted through an optional `persist` callback
 (the backend passes one that writes `app_settings['abuse_config']` in Postgres, the source of
 truth) and cached in Redis with a version counter. Each worker re-reads the version at most
 once per second, so a change reaches every worker within about a second. If Redis is down the
@@ -58,12 +61,18 @@ DEFAULT_THRESHOLDS: dict[str, Any] = {
     "cooldown_ms": 30_000,
     "slow_ttl_ms": 30_000,
     "fallback_max_keys": 100_000,
-    # L6 (OTP) limits: [count, window_s]
-    "otp_per_phone": [3, 600],
-    "otp_per_device_phones": [3, 600],
-    "otp_per_ip": [60, 60],
-    "otp_per_net24": [300, 60],
-    "otp_prefix_distinct": [20, 60],
+    # L6 (OTP) limits as flat numbers (the contract types every threshold as a number):
+    # <name>_count requests (or distinct phones) per <name>_window_s seconds.
+    "otp_per_phone_count": 3,
+    "otp_per_phone_window_s": 600,
+    "otp_per_device_phones_count": 3,
+    "otp_per_device_phones_window_s": 600,
+    "otp_per_ip_count": 60,
+    "otp_per_ip_window_s": 60,
+    "otp_per_net24_count": 300,
+    "otp_per_net24_window_s": 60,
+    "otp_prefix_distinct_count": 20,
+    "otp_prefix_distinct_window_s": 60,
     "otp_prefix_block_s": 60,
 }
 
@@ -96,6 +105,24 @@ class AbuseConfig:
 
     def on(self, layer: str) -> bool:
         return self.layers.get(layer, True)
+
+    def contract_dict(self) -> dict[str, Any]:
+        """The contract shape (AbuseConfigOut without server_time)."""
+        return {"layers": dict(self.layers), "thresholds": dict(self.thresholds)}
+
+    def merged_contract(self, payload: Any) -> AbuseConfig:
+        """Validate a contract request (AbuseConfigIn): `layers` required, `thresholds`
+        optional, nothing else; every threshold must be a known key with a number value."""
+        if not isinstance(payload, dict):
+            raise ConfigError("config must be an object")
+        extra = set(payload) - {"layers", "thresholds"}
+        if extra:
+            raise ConfigError(f"unknown fields: {sorted(extra)}")
+        if "layers" not in payload:
+            raise ConfigError("layers is required")
+        return self.merged(
+            {"layers": payload["layers"], "thresholds": payload.get("thresholds", {})}
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -199,9 +226,12 @@ class ConfigStore:
         except (RedisError, OSError, ValueError):
             return
 
-    async def update(self, payload: dict[str, Any]) -> AbuseConfig:
-        """Validate, persist (Postgres via `persist`), publish to Redis, apply locally."""
-        new = self._cfg.merged(payload)
+    async def update(self, payload: dict[str, Any], *, contract: bool = False) -> AbuseConfig:
+        """Validate, persist (Postgres via `persist`), publish to Redis, apply locally.
+
+        `contract=True` validates `payload` as the frozen AbuseConfigIn (what the HTTP route
+        must use); internal callers may also pass `limits` and `rules`."""
+        new = self._cfg.merged_contract(payload) if contract else self._cfg.merged(payload)
         if self.persist is not None:
             await self.persist(new.to_dict())
         if self.redis is not None:

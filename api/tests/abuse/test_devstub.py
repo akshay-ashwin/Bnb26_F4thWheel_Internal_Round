@@ -192,7 +192,7 @@ async def test_fair_offer_claim_replay_and_step_up(client: httpx.AsyncClient) ->
     assert len(winners) == 5  # everyone scores >= 1 point here, so every winner steps up
     w, other = winners[0], next(u for u in users if u not in winners)
     body = await w.me(drop)
-    assert "admission_token" not in body["entry"]
+    assert body["entry"]["admission_token"] is None  # present and null (contract)
     assert (await w.claim(drop, "x.y.z")).status_code == 401
     r = await client.post(
         f"/api/drops/{drop}/step-up",

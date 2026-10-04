@@ -11,7 +11,6 @@ import json
 import math
 import os
 from collections import Counter
-from datetime import UTC, datetime
 from http.cookies import SimpleCookie
 from typing import Any
 
@@ -26,6 +25,7 @@ from app.abuse.limiter import (
     net24_of,
     session_id_from_token,
 )
+from app.clock import server_time
 
 SESSION_COOKIE = "fd_session"
 
@@ -74,7 +74,7 @@ def reject_response(d: Decision) -> tuple[int, list[tuple[bytes, bytes]], bytes]
                 "message": "Slow down",
                 "retry_after_ms": ms,
             },
-            "server_time": datetime.now(UTC).isoformat(),
+            "server_time": server_time(),
         }
     ).encode()
     headers = [

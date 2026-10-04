@@ -72,11 +72,31 @@ async def otp_guard(
         p = redis.pipeline(transaction=False)
         checks: list[tuple[str, int, int, str]] = []
         for key, member, (limit, window) in (
-            (f"otp:ph:{phone_hash}", f"{now}", th["otp_per_phone"]),
-            (f"otp:dev:{device_id}", phone_hash, th["otp_per_device_phones"]),
-            (f"otp:ip:{ip}", f"{now}:{phone_hash}", th["otp_per_ip"]),
-            (f"otp:n24:{net}", f"{now}:{phone_hash}", th["otp_per_net24"]),
-            (f"otp:pfx:{prefix}", phone_hash, th["otp_prefix_distinct"]),
+            (
+                f"otp:ph:{phone_hash}",
+                f"{now}",
+                (th["otp_per_phone_count"], th["otp_per_phone_window_s"]),
+            ),
+            (
+                f"otp:dev:{device_id}",
+                phone_hash,
+                (th["otp_per_device_phones_count"], th["otp_per_device_phones_window_s"]),
+            ),
+            (
+                f"otp:ip:{ip}",
+                f"{now}:{phone_hash}",
+                (th["otp_per_ip_count"], th["otp_per_ip_window_s"]),
+            ),
+            (
+                f"otp:n24:{net}",
+                f"{now}:{phone_hash}",
+                (th["otp_per_net24_count"], th["otp_per_net24_window_s"]),
+            ),
+            (
+                f"otp:pfx:{prefix}",
+                phone_hash,
+                (th["otp_prefix_distinct_count"], th["otp_prefix_distinct_window_s"]),
+            ),
         ):
             p.zremrangebyscore(key, 0, now - window)
             p.zadd(key, {member: now})

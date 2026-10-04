@@ -41,6 +41,7 @@ from app.abuse.config import ConfigStore
 from app.abuse.limiter import Limiter, session_id_from_token
 from app.abuse.middleware import AbuseMiddleware, client_ip, session_token, sim_mode
 from app.abuse.router import config_router
+from app.clock import server_time
 
 
 def _env(name: str, default: str) -> str:
@@ -70,11 +71,13 @@ POLL_BASE_MS = {
 
 
 def now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return server_time()  # the contract format: milliseconds, Z suffix
 
 
 def iso(ts: float | None) -> str | None:
-    return datetime.fromtimestamp(ts, UTC).isoformat() if ts is not None else None
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(ts, UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def err(
@@ -329,11 +332,10 @@ async def get_drop(drop_id: str) -> JSONResponse:
         "claim_window_s": d.claim_window_s,
         "seats_remaining": d.capacity - d.sold,
         "seed_commit": d.seed_commit,
+        # always present (contract): null until the draw reveals them
+        "seed": d.seed if d.phase in ("DRAWN", "CLAIMING", "DONE") else None,
+        "entry_set_hash": d.entry_set_hash,
     }
-    if d.phase in ("DRAWN", "CLAIMING", "DONE"):
-        out["seed"] = d.seed
-    if d.entry_set_hash:
-        out["entry_set_hash"] = d.entry_set_hash
     return ok(out)
 
 
@@ -351,7 +353,7 @@ async def otp_request(request: Request) -> JSONResponse:
             {
                 "request_id": prev.request_id,
                 "expires_in_s": OTP_TTL_S,
-                **({"dev_otp": prev.otp} if sim_mode() else {}),
+                "dev_otp": prev.otp if sim_mode() else None,
             }
         )
     blocked = await risk.otp_guard(
@@ -365,7 +367,7 @@ async def otp_request(request: Request) -> JSONResponse:
     S.otps[rid] = OtpRequest(rid, ph, phone, otp, device, now)
     S.otp_by_phone[ph] = rid
     return ok(
-        {"request_id": rid, "expires_in_s": OTP_TTL_S, **({"dev_otp": otp} if sim_mode() else {})}
+        {"request_id": rid, "expires_in_s": OTP_TTL_S, "dev_otp": otp if sim_mode() else None}
     )
 
 
@@ -422,7 +424,7 @@ async def create_entry(drop_id: str, request: Request) -> JSONResponse:
         return err(403, "WINDOW_CLOSED", "registration is closed")
     now = time.time()
     ctx = risk.EntryContext(
-        uuid.uuid4().hex,
+        str(uuid.uuid4()),
         user.id,
         sess.device_id,
         _ip(request),
@@ -487,17 +489,18 @@ async def me(drop_id: str, request: Request) -> JSONResponse:
     allocation: dict[str, Any] | None = None
     if e is not None:
         _expire(d, e, now)
+        # Plan 03 contract: optional fields are always present, null when they do not apply.
+        offered = e.status in ("OFFERED", "STEP_UP_REQUIRED")
         entry = {
             "entry_id": e.entry_id,
             "status": e.status,
+            "rank": e.rank,
+            "waitlist_pos": e.waitlist_pos,
+            "offer_expires_at": iso(e.offer_expires_at) if offered else None,
             "step_up_required": e.status == "STEP_UP_REQUIRED",
+            "admission_token": None,
+            "dev_otp": None,
         }
-        if e.rank is not None:
-            entry["rank"] = e.rank
-        if e.waitlist_pos is not None:
-            entry["waitlist_pos"] = e.waitlist_pos
-        if e.offer_expires_at is not None and e.status in ("OFFERED", "STEP_UP_REQUIRED"):
-            entry["offer_expires_at"] = iso(e.offer_expires_at)
         if d.mode == "fair" and e.status == "OFFERED" and e.offer_expires_at:
             entry["admission_token"] = mint_token(d, e, sess, e.offer_expires_at)
         elif d.mode == "fifo" and d.phase == "OPEN" and e.status == "REGISTERED":
@@ -568,7 +571,7 @@ async def claim(
             _sold_out_fifo(d)
         return err(409, "SOLD_OUT", "no seats left")
     d.sold += 1
-    e.seat_no, e.allocation_id, e.confirmed_at = d.sold, uuid.uuid4().hex, now
+    e.seat_no, e.allocation_id, e.confirmed_at = d.sold, str(uuid.uuid4()), now
     e.status = "ALLOCATED"
     d.seats[e.seat_no] = e.entry_id
     S.used_jti.add(str(claims.get("jti")))
@@ -795,7 +798,10 @@ async def admin_metrics(
         {
             "rps_series": [],
             "outcomes_series": {},
-            "latency": {},
+            # the stub does not measure server-side latency: zeros here, and the note says so;
+            # use the simulator's client-observed latency instead
+            "latency": {"p50": 0.0, "p95": 0.0, "p99": 0.0},
+            "latency_note": "dev stub: not measured server-side; see simulator client latency",
             "error_rate": 0.0,
             "active_sessions": len(S.sessions),
             "entries": len(d.entries),
