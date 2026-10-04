@@ -160,17 +160,44 @@ async def login(
     polite: bool,
     attempts: int = 6,
 ) -> bool:
-    """Request an OTP, 'type' it, verify. Honours Retry-After when polite."""
+    """Request an OTP, 'type' it, verify. Honours Retry-After when polite.
+
+    If `ident.log` holds per-user counters (genuine users), sign-in requests, 429s and retries
+    are recorded there too, so genuine-user metrics include the sign-in step."""
+    log = ident.log if "requests" in ident.log else None
+    saw_429 = False
+
+    def note(res: Result) -> None:
+        nonlocal saw_429
+        if log is None:
+            return
+        log["requests"] += 1
+        if res.status == 429:
+            saw_429 = True
+            log["rate_limited"] += 1
+            if res.headers.get("Retry-After") is not None and res.code:
+                log["rate_limited_with_retry_after"] += 1
+        elif res.status == 0 or res.status >= 500:
+            log["server_or_transport_errors"] += 1
+        else:
+            log["first_try_ok"] += 0 if saw_429 else 1
+
     for _ in range(attempts):
         r = await api.otp_request(ident)
+        note(r)
         if r.ok:
             if typing_s[1] > 0:
                 await asyncio.sleep(rng.uniform(*typing_s))
             v = await api.otp_verify(
                 ident, str(r.body.get("request_id")), str(r.body.get("dev_otp", ""))
             )
+            note(v)
             if v.ok:
+                if log is not None and saw_429:
+                    log["retried_after_429_ok"] += 1
                 return True
             r = v
         await asyncio.sleep(r.retry_after_s(1.0) if polite else 0.05)
+    if log is not None and saw_429:
+        log["retried_after_429_failed"] += 1
     return False

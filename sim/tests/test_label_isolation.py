@@ -79,3 +79,44 @@ async def test_no_label_or_actor_id_on_the_wire() -> None:
         "is_bot",
     ):
         assert needle not in blob, needle
+
+
+async def test_sign_in_429s_are_counted_for_genuine_users() -> None:
+    """Regression: 429s during sign-in must reach the per-user log (they were missed once)."""
+    calls = {"n": 0}
+
+    async def route(request: web.Request) -> web.Response:
+        calls["n"] += 1
+        if request.path.endswith("/otp/request") and calls["n"] == 1:
+            body = {"error": {"code": "RATE_LIMITED", "message": "x", "retry_after_ms": 50}}
+            return web.json_response(body, status=429, headers={"Retry-After": "1"})
+        if request.path.endswith("/otp/request"):
+            return web.json_response({"request_id": "r1", "dev_otp": "123456"})
+        return web.json_response({"session_token": "s.t", "user_public_id": "u_1"})
+
+    from sim.api import login
+    from sim.clients.human import _log
+
+    app = web.Application()
+    app.router.add_route("*", "/{tail:.*}", route)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]  # type: ignore[union-attr]
+    ident = Identity("h", "human", "human", "human", "+917000000001", "d", "1.2.3.4", "ua")
+    log = _log(ident)
+    try:
+        async with make_session(f"http://127.0.0.1:{port}", 4, 5) as http:
+            ok = await login(
+                Api(http, Stats(), "d"),
+                ident,
+                random.Random(1),  # noqa: S311
+                typing_s=(0, 0),
+                polite=True,
+            )
+    finally:
+        await runner.cleanup()
+    assert ok
+    assert log["rate_limited"] == 1 and log["rate_limited_with_retry_after"] == 1
+    assert log["retried_after_429_ok"] == 1 and log["requests"] == 3

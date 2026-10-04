@@ -169,8 +169,10 @@ def evaluate(run: Path) -> dict[str, Any]:
         "users_429_rate": div(users_429, users),
         "requests": req,
         "first_try_success_rate": div(first_ok, req),
-        "rate_limited_responses": rl,
-        "rate_limited_rate": div(rl, req),
+        # all human requests, including sign-in, from the per-label counters
+        "rate_limited_responses": hum_c.get("rate_limited", 0),
+        "rate_limited_rate": div(hum_c.get("rate_limited", 0), hum_c.get("requests", 0)),
+        "rate_limited_in_user_logs": rl,
         "rate_limited_with_retry_after": rl_ra,
         "retry_after_429_succeeded": retry_ok,
         "retry_after_429_still_failing": retry_fail,

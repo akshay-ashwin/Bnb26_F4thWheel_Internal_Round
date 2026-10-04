@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="360" font-family="sans-serif" font-size="11">
+<rect width="360" height="360" fill="white"/>
+<line x1="40" y1="320" x2="320" y2="40" stroke="#999" stroke-dasharray="4 3"/>
+<line x1="40" y1="320" x2="320" y2="320" stroke="#333"/>
+<line x1="40" y1="320" x2="40" y2="40" stroke="#333"/>
+<text x="180.0" y="352" text-anchor="middle">attacker identity share of entries</text>
+<text x="12" y="180.0" transform="rotate(-90 12 180.0)" text-anchor="middle">attacker seat share</text>
+<circle cx="40.0" cy="320.0" r="4" fill="#c0392b"/>
+<circle cx="40.0" cy="320.0" r="4" fill="#2471a3"/>
+<circle cx="319.4" cy="40.0" r="4" fill="#c0392b"/>
+<circle cx="133.3" cy="244.4" r="4" fill="#2471a3"/>
+<circle cx="320.0" cy="40.0" r="4" fill="#c0392b"/>
+<circle cx="214.5" cy="140.8" r="4" fill="#2471a3"/>
+<circle cx="320.0" cy="40.0" r="4" fill="#c0392b"/>
+<circle cx="254.4" cy="118.4" r="4" fill="#2471a3"/>
+<circle cx="320.0" cy="40.0" r="4" fill="#c0392b"/>
+<circle cx="281.8" cy="64.1" r="4" fill="#2471a3"/>
+<text x="46" y="20" fill="#c0392b">FIFO</text>
+<text x="86" y="20" fill="#2471a3">Fair</text>
+<text x="250" y="54" fill="#777">proportional</text>
+</svg>

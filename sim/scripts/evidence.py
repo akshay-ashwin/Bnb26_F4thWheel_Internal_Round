@@ -155,6 +155,7 @@ def main() -> int:
         choices=[
             *SCENARIOS,
             "flash_crowd_50k",
+            "network_switch_60s",
             "claim_stampede",
             "identity_budget_sweep",
             "final",
@@ -171,7 +172,7 @@ def main() -> int:
         compare(out, f"scorecard_{name}")
         return out
 
-    if a.suite in SCENARIOS or a.suite == "flash_crowd_50k":
+    if a.suite in SCENARIOS or a.suite in ("flash_crowd_50k", "network_switch_60s"):
         pair(a.suite)
     elif a.suite == "claim_stampede":
         for m in MODES:
