@@ -26,6 +26,8 @@ Standing rules that apply to every line of work in this plan:
 
 > Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 24 LTS (D-002), macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
 
+> Plan 03 handover (2026-10-04): starting pool values are 4 workers x `DB_POOL_MAX` 30 + 10 headroom = 130 < 197 (max_connections 200 minus 3 reserved); the API refuses to start if the sum reaches 197. `REDIS_TIMEOUT_MS` default is 50 (breaker: 3 failures, 2 s cool-off). Pool acquire timeout 1 s, statement_timeout 5 s.
+
 ## 1. Goal
 
 Turn runs into evidence. Produce a scorecard that answers the problem statement with measured numbers (advantage ratio, share vs share inside a chance band, arrival-order independence, requests per win, 0 oversold, latency, FPR, recall), prove resilience with chaos runs, tune performance from measurements, record the final FIFO vs Fair runs with fixed seeds, and package everything the team needs to demo and answer judges without ever quoting a number a run didn't produce.

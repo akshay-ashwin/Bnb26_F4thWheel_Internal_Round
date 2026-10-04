@@ -1,6 +1,6 @@
 # Fair Drop API contract
 
-> **FROZEN at Plan 03 completion.** Until then this file is a skeleton written in Plan 01 so the frontend (Ameya), the backend (Akshay) and the simulator (Saanvi) code against the same shapes. After Plan 03, changes happen only through a Deviation Record (Rule R2) with a "CONTRACT CHANGE — teammates must know" banner at the top of the review log, and the OpenAPI snapshot in this folder is regenerated in the same step (`uv run fd openapi`, Plan 03).
+> **FROZEN (Plan 03, 2026-10-04).** The canonical machine-readable contract is [`openapi.json`](openapi.json), generated from the code (`uv run fd openapi`; `uv run fd openapi --check` fails if the snapshot is stale). This file explains it in words. A change needs a note to all three people (Ameya, Akshay, Saanvi), a "CONTRACT CHANGE — teammates must know" banner at the top of the review log, and a regenerated snapshot in the same commit. The snapshot is always exported with `SIM_MODE=true` so `/sim/telemetry` is included.
 
 Source of truth for shapes: `docs/design/Fair_Drop_Architecture.md` section 11 (shapes below are copied from it). Additions made by later plans are marked **(addition)** and name the plan.
 
@@ -11,7 +11,7 @@ The browser and the simulator call exactly the same public endpoints. Fifteen en
 - Base path `/api`. JSON only (the export is NDJSON).
 - Auth: the `fd_session` httpOnly cookie (browser) or `Authorization: Bearer <session_token>` (simulator). Both carry the same session.
 - Every POST that changes state requires `Idempotency-Key: <uuid>` (see the endpoint table for which ones; a missing key is `400 IDEMPOTENCY_KEY_MISSING`).
-- **Every response includes `server_time`** (ISO 8601 UTC string, top level of the JSON body). The NDJSON export has no per-row `server_time`; it sends the same value in an `X-Server-Time` response header instead (decision made in Plan 01, to be confirmed in Plan 14).
+- **Every response includes `server_time`** (ISO 8601 UTC string with milliseconds and a `Z` suffix, e.g. `2026-10-04T10:15:30.123Z`; top level of the JSON body; a required field in every response schema). The NDJSON export has no per-row `server_time`; it sends the same value in an `X-Server-Time` response header instead (decision made in Plan 01, to be confirmed in Plan 14).
 - Every error uses the one envelope below. No endpoint returns any other error shape.
 - Admin endpoints need the `X-Admin-Key` header (value from `.env`).
 
@@ -22,11 +22,11 @@ The browser and the simulator call exactly the same public endpoints. Fifteen en
 ```json
 {
   "error": { "code": "RATE_LIMITED", "message": "Slow down", "retry_after_ms": 2000 },
-  "server_time": "2026-10-04T10:15:30.123456+00:00"
+  "server_time": "2026-10-04T10:15:30.123Z"
 }
 ```
 
-`retry_after_ms` is present only when it makes sense (429, 503, throttles). `code` values are listed in [`error-codes.md`](error-codes.md). The design doc shows the envelope without `server_time`; the "every response includes `server_time`" convention is what adds it, and it sits next to `error`, so clients that only read `error` are unaffected.
+`retry_after_ms` is present only when it makes sense (429, 503, throttles); the `Retry-After` header (whole seconds, rounded up) is set at the same time. **(addition, Plan 03)** `error.details` is an optional object: for `VALIDATION_ERROR` it is `{"fields": [{"field": "body.phone", "message": "..."}]}` (never the submitted value); for a `503` from `/readyz` it is `{"postgres": "down", "redis": "up"}`. Unknown paths return `404 NOT_FOUND`, a wrong method returns `405` with code `VALIDATION_ERROR`, and a `500 INTERNAL` message carries the request id (also in the `X-Request-ID` response header, which every response has). `code` values are listed in [`error-codes.md`](error-codes.md). The design doc shows the envelope without `server_time`; the "every response includes `server_time`" convention is what adds it, and it sits next to `error`, so clients that only read `error` are unaffected.
 
 ### 2. The `/me` JSON (`GET /api/drops/{id}/me`) — the UI's single source of truth
 
@@ -44,11 +44,11 @@ The browser and the simulator call exactly the same public endpoints. Fifteen en
   },
   "allocation": null,
   "poll_after_ms": 2000,
-  "server_time": "2026-10-04T10:15:30+00:00"
+  "server_time": "2026-10-04T10:15:30.123Z"
 }
 ```
 
-- `rank?`, `waitlist_pos?`, `offer_expires_at?` and `admission_token?` are present only when they apply. `allocation?` is present only after a seat is confirmed: `{ "allocation_id": "...", "seat_no": 42, "confirmed_at": "..." }`.
+- **(changed in Plan 03)** Optional fields are always present and `null` when they do not apply (the OpenAPI schema marks them required and nullable): `entry` (null before registering), `rank`, `waitlist_pos`, `offer_expires_at`, `admission_token`, `dev_otp` (SIM_MODE only, otherwise null) and `allocation` (null until a seat is confirmed: `{ "allocation_id": "...", "seat_no": 42, "confirmed_at": "..." }`).
 - `entry.status` is one of: `REGISTERED`, `OFFERED`, `STEP_UP_REQUIRED`, `WAITLISTED`, `NOT_SELECTED`, `OFFER_EXPIRED`, `ALLOCATED`, `DISQUALIFIED`. Every user screen maps to exactly one of these (plus "no entry yet" and the phase).
 - Admission token claims: `{drop_id, entry_id, sid_hash, jti, iat, exp}`; `exp` is no later than the offer expiry; `sid_hash` binds the token to the session that fetched it.
 - Errors: `401`, `429`. Read-only.
@@ -113,7 +113,7 @@ check(request) -> Decision { outcome: "allow" | "reject",
 }
 ```
 
-Only available when `SIM_MODE=true`, protected by `SIM_TELEMETRY_KEY`. It writes to a separate Redis namespace `sim:*`. The dashboard shows it as "ground truth". No backend decision module may read `sim:*` keys (invariant 6; a CI check enforces it in Plan 14).
+Only available when `SIM_MODE=true`, protected by `SIM_TELEMETRY_KEY` sent in the `X-Sim-Key` header. It writes to a separate Redis namespace `sim:*`. The dashboard shows it as "ground truth". No backend decision module may read `sim:*` keys (invariant 6; a CI check enforces it in Plan 14).
 
 ## Endpoint table
 
@@ -155,9 +155,9 @@ Admin endpoints are idempotent by nature. A bad or missing admin key is `401 UNA
 
 ### Health
 
-`GET /api/healthz` returns `200 {"status":"ok","server_time":"..."}`. It is not part of the fifteen business endpoints; Plan 01 added it so Docker health checks and the web proxy check have something to call.
+`GET /api/healthz` returns `200 {"status":"ok","server_time":"..."}` and touches nothing. **(addition, Plan 03)** `GET /api/readyz` returns `200 {"status":"ready"|"degraded","postgres":"up","redis":"up"|"down","server_time":"..."}`; Redis down is `degraded` (still `200`), Postgres down is the error envelope `503 SERVICE_UNAVAILABLE` with `details`. Neither is one of the fifteen business endpoints.
 
 ## Where things are decided later
 
-- Exact HTTP status for `VALIDATION_ERROR`: 400, to stay consistent with `INVALID_PHONE` (Plan 03).
+- Exact HTTP status for `VALIDATION_ERROR`: decided in Plan 03 as 400, consistent with `INVALID_PHONE`. FastAPI's default 422 is removed from the spec; the only 422 is `IDEMPOTENCY_KEY_REUSED`.
 - Run summary and scorecard storage endpoints are mentioned in Plan 14 scope; if they become public endpoints they get added here under a Deviation Record.

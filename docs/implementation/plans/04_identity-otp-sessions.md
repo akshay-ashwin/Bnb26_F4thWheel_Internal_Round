@@ -24,6 +24,8 @@ Standing rules that apply to every line of work in this plan:
 
 > Updated by D-001 (2026-10-04): stack rules apply to this plan. Everything runs through Docker Compose and `uv run fd <task>` (no `make`, no host Python or Node), files are LF, Node is 24 LTS (D-002), macOS and Windows are both supported, and fullstack-dev-skills may be used as advice but never its `project:*` workflow commands. CLAUDE.md always wins. See CLAUDE.md "Stack and platform rules" and `docs/decisions/D-001-cross-platform-docker-uv-node22-skills.md`. Read any `make X` below as `uv run fd X`.
 
+> Plan 03 handover (2026-10-04): `deps.session_credential` only declares the cookie/bearer schemes; replace it with the real session lookup (return the session, raise `Unauthenticated`). `deps.PoolDep`/`CacheDep`, `db.transaction(...)`, `cache.run(op, fallback=...)` and `errors.*` exist; the stubs in `routers/public.py` raise `NotImplementedYet`. Response models are in `schemas/`; the OpenAPI snapshot must be regenerated (`uv run fd openapi`) if a model changes, which is a contract change. Tests: `fixtures client`, `clean_db`, `client_redis_down`, `admin_headers`, `sim_headers`, `tests/helpers.fire_concurrently`.
+
 ## 1. Goal
 
 Make "one phone number = one identity" real and cheap to check, issue sessions that work identically for browsers (httpOnly cookie) and the simulator (bearer token), and leave clean hook points for OTP abuse controls (L6) and risk signals (L7).

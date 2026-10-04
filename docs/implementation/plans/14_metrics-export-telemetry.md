@@ -66,6 +66,8 @@ Response (contract shape + additions marked):
 - `error_rate` = 5xx / total over window.
 - `active_sessions`.
 - `entries`, `offers`, `allocated`, `remaining`, `flagged_entries` — from Postgres via one aggregate query on entries by status (indexed), cached 1 s in-process; `remaining` from integrity.
+
+> Updated by D-004 (2026-10-04) after Plan 02: `remaining` and the integrity fields come from `v_drop_integrity` (field names listed in Plan 02 §4.5 and Plan 08), which reads `entries` once through the `(drop_id, status, draw_rank)` index; counting entries by status for the other fields uses the same index.
 - `step_ups {issued, passed, failed}`.
 - (addition) `phase`, `mode`, `run_no`, `events[]`, `achieved_peak_rps` (max over the run).
 Budget: < 50 ms per call; the dashboard polls every 1 s.

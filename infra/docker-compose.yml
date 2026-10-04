@@ -54,9 +54,10 @@ services:
       - -c
       - >-
         uv sync --frozen --no-install-project &&
+        python -m app.preflight &&
         if [ "$${API_RELOAD}" = "true" ];
-        then exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload;
-        else exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$${UVICORN_WORKERS:-4}";
+        then exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --no-access-log;
+        else exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers "$${UVICORN_WORKERS:-4}" --no-access-log;
         fi
     volumes:
       - ./api:/app
@@ -146,15 +147,19 @@ services:
       api:
         condition: service_healthy
 
-  # One-shot migrations runner: uv run fd migrate (also writes api/schema.sql)
+  # One-shot migrations runner: uv run fd migrate (never run by hand with a different URL).
+  # Connects as the Postgres superuser that owns the schema (the api uses the restricted
+  # fairdrop_app role instead, D-005). MIGRATE_DB lets `fd test-api` migrate fairdrop_test with
+  # the same files; schema.sql is dumped by dbmate itself (no shell redirect, so LF on every OS).
   migrate:
     profiles: ["tools"]
     image: ghcr.io/amacneil/dbmate:2
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-fairdrop}:${POSTGRES_PASSWORD:?run "uv run fd secrets" first}@postgres:5432/${POSTGRES_DB:-fairdrop}?sslmode=disable
+      DATABASE_URL: postgres://${POSTGRES_USER:-fairdrop}:${POSTGRES_PASSWORD:?run "uv run fd secrets" first}@postgres:5432/${MIGRATE_DB:-${POSTGRES_DB:-fairdrop}}?sslmode=disable
+      DBMATE_SCHEMA_FILE: /db/migrations/schema.sql
     volumes:
       - ./api:/db
-    command: ["status"]
+    command: ["--wait", "up"]
     depends_on:
       postgres:
         condition: service_healthy

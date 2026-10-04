@@ -40,6 +40,8 @@ Out of scope: the business logic of each endpoint.
 1. `idempotency_records` table exists with `drop_id` column (Plan 02).
 2. Session dependency works (Plan 04).
 
+> Updated by D-005 (2026-10-04) after Plan 02: columns are `(user_id, key)` primary key, `drop_id NOT NULL` (FK to `drops`), `endpoint`, `request_hash`, `response jsonb`, `status_code`, `created_at`. The application role may SELECT, INSERT, DELETE (TTL cleanup) and UPDATE only `response` and `status_code`; anything else needs a new migration. `admin_reset_drop` deletes a drop's records.
+
 ## 4. Design (write this into `docs/contract/idempotency.md` too)
 
 ### 4.1 Key rules

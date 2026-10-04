@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 
@@ -34,10 +35,21 @@ def run(
     )
 
 
-def run_live(args: Sequence[str], *, cwd: Path | None = None) -> int:
-    """Run a command attached to this console and return its exit code."""
+def run_live(
+    args: Sequence[str], *, cwd: Path | None = None, env: Mapping[str, str] | None = None
+) -> int:
+    """Run a command attached to this console and return its exit code.
+
+    `env` adds variables to the inherited environment (used to hand values to docker compose
+    without putting them on the command line).
+    """
     try:
-        return subprocess.run(list(args), cwd=cwd or repo_root(), check=False).returncode
+        return subprocess.run(
+            list(args),
+            cwd=cwd or repo_root(),
+            env={**os.environ, **env} if env else None,
+            check=False,
+        ).returncode
     except FileNotFoundError:
         print(f"fd: command not found: {args[0]} (run `uv run fd doctor`)")
         return 127

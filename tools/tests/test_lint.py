@@ -72,6 +72,7 @@ class SecretsGenerator(unittest.TestCase):
             secret_keys,
             {
                 "POSTGRES_PASSWORD",
+                "APP_DB_PASSWORD",
                 "DATABASE_URL",
                 "PHONE_PEPPER",
                 "SESSION_SECRET",
@@ -94,10 +95,19 @@ class SecretsGenerator(unittest.TestCase):
             raw = (root / ".env").read_bytes()
             self.assertNotIn(b"\r", raw)
             values = envfile.read_values(root / ".env")
-            for key in ("POSTGRES_PASSWORD", "PHONE_PEPPER", "SESSION_SECRET", "ADMIN_KEY"):
+            for key in (
+                "POSTGRES_PASSWORD",
+                "APP_DB_PASSWORD",
+                "PHONE_PEPPER",
+                "SESSION_SECRET",
+                "ADMIN_KEY",
+            ):
                 self.assertRegex(values[key], r"^[0-9a-f]{64}$")
-            # ${NAME} references are expanded, so the URL carries the generated password.
-            self.assertIn(values["POSTGRES_PASSWORD"], values["DATABASE_URL"])
+            # ${NAME} references are expanded, so the URL carries the generated password of the
+            # restricted application role (never the superuser's, D-005).
+            self.assertTrue(values["DATABASE_URL"].startswith("postgresql://fairdrop_app:"))
+            self.assertIn(values["APP_DB_PASSWORD"], values["DATABASE_URL"])
+            self.assertNotIn(values["POSTGRES_PASSWORD"], values["DATABASE_URL"])
             self.assertNotIn("${", values["DATABASE_URL"])
 
             before = (root / ".env").read_bytes()

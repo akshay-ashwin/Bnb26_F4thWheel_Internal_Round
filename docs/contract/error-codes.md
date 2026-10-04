@@ -26,3 +26,9 @@ Statuses for codes the design doc lists come from its API section 11. `UNAUTHENT
 | `VALIDATION_ERROR` | 400 | The request body or a parameter failed validation. | No; fix the request. | Inline form error or generic banner. |
 | `SERVICE_UNAVAILABLE` | 503 | Postgres is slow or down, or a lock or pool timeout occurred. Nothing was written. | Yes, with the same idempotency key, honouring `Retry-After`, with exponential backoff and jitter. | "Reconnecting... your place is safe" banner. |
 | `INTERNAL` | 500 | Unexpected server error. The message carries a request id. | Yes, a bounded number of times; then show the error. | Generic error banner with the request id. |
+
+## Dev-only code (not in the OpenAPI enum)
+
+| Code | HTTP | Meaning |
+| --- | --- | --- |
+| `NOT_IMPLEMENTED` | 501 | A Plan 03 endpoint stub whose logic lands in a later plan. It is not part of the contract and disappears as each stub is replaced. Clients never handle it. |
