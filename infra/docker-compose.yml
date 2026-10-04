@@ -126,6 +126,29 @@ services:
       timeout: 3s
       retries: 12
 
+  # Playwright e2e against the real stack (profile "e2e"): uv run fd test-web --e2e (Plan 16).
+  # Runs inside a Linux container on the compose network, so results match on macOS and Windows.
+  e2e:
+    profiles: ["e2e"]
+    build:
+      context: ./web
+      target: e2e
+    command: ["sh", "-c", "pnpm install --frozen-lockfile && exec pnpm e2e"]
+    environment:
+      E2E_BASE_URL: http://web:5173
+      E2E_API_URL: http://api:8000/api
+      ADMIN_KEY: ${ADMIN_KEY:-}
+      # Set E2E_SCREENS=1 to refresh the curated screenshots in docs/screens/.
+      SCREENS_DIR: ${E2E_SCREENS:+/screens}
+    volumes:
+      - ./web:/app
+      - web-e2e-node-modules:/app/node_modules
+      - ./docs/screens:/screens
+    shm_size: 1gb
+    depends_on:
+      web:
+        condition: service_healthy
+
   # Idle by default (profile "sim"); runs scenarios on demand: uv run fd sim ... (Plan 18).
   # Gets only the two keys it legitimately needs, not the whole .env.
   sim:
@@ -169,3 +192,4 @@ volumes:
   api-venv:
   sim-venv:
   web-node-modules:
+  web-e2e-node-modules:

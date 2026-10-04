@@ -18,6 +18,18 @@ CMD ["pnpm", "dev", "--host", "0.0.0.0"]
 FROM dev AS build
 RUN pnpm build
 
+# E2E (profile "e2e", `uv run fd test-web --e2e`): Playwright with its browsers, on the compose
+# network. The image tag must equal the pinned @playwright/test version; it ships Node 24.
+FROM mcr.microsoft.com/playwright:v1.63.0-noble AS e2e
+ENV CI=true \
+    npm_config_store_dir=/app/node_modules/.pnpm-store
+RUN corepack enable
+WORKDIR /app
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY . .
+CMD ["pnpm", "e2e"]
+
 # Prod profile: static files + same-origin /api reverse proxy (cookies work without CORS).
 FROM nginx:stable-alpine AS prod
 COPY nginx.conf /etc/nginx/conf.d/default.conf

@@ -199,10 +199,11 @@ def openapi(*, check: bool) -> int:
 
 
 def test_web(*, e2e: bool) -> int:
-    if e2e:
-        console.info("`test-web --e2e` is not implemented yet (Plan 15)")
-        return 0
-    return _compose("run", "--rm", "--no-deps", "web", "pnpm", "test")
+    code = _compose("run", "--rm", "--no-deps", "web", "pnpm", "test")
+    if code or not e2e:
+        return code
+    # Needs a migrated database and an api with SIM_MODE=true (the tests read dev_otp).
+    return _compose("--profile", "e2e", "run", "--rm", "--build", "e2e")
 
 
 _CONTAINER_LINT: tuple[tuple[str, str], ...] = (

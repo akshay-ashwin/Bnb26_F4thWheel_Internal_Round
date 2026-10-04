@@ -28,7 +28,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     ta.add_argument("pytest_args", nargs="*", help="extra pytest arguments (put -- before options)")
     tw = sub.add_parser("test-web", help="run web tests in the container")
-    tw.add_argument("--e2e", action="store_true", help="also run Playwright (Plan 15)")
+    tw.add_argument("--e2e", action="store_true", help="also run Playwright against the real stack")
 
     lint = sub.add_parser("lint", help="ruff, mypy, eslint, tsc and the no-CR check")
     lint.add_argument("--staged", action="store_true", help="fast checks on staged files only")
