@@ -1,0 +1,162 @@
+{
+  "label": "REAL BACKEND (app.main, 4 uvicorn workers, Postgres 16, Redis 7), ABUSE_ENFORCE=true",
+  "scenario": "200 genuine users + 10000 bot clients + 50 seats",
+  "scenario_file": "sim/scenarios/genuine_retry_real.toml",
+  "seed": 101,
+  "code_tested": {
+    "main": "4b91d3e",
+    "fix": "de51514 (limiter Redis pool)",
+    "branch": "cloud/real-backend-validation"
+  },
+  "commands": [
+    "python sim/scripts/evidence.py real_smoke --target http://api:8000 --reset",
+    "python sim/scripts/evidence.py real_main --target http://api:8000 --reset"
+  ],
+  "clean_state": "fresh Postgres volume (re-migrated) and fresh Redis before every run",
+  "genuine_network_mix": "40 on one campus NAT IP, 60 behind 6 carrier-NAT IPs, 100 home IPs; 25% switch Wi-Fi->mobile after sign-in",
+  "bot_mix": "9000 flood (1 identity), 800 burst (4 identities), 50 duplicate, 100 farm identities, 10 token-replay, 40 anonymous",
+  "environment": "cloud container, 4 vCPU, 15 GB RAM; api + Postgres + Redis + simulator share the same 4 CPUs",
+  "smoke_test": {
+    "result": "41/41 checks passed, 0 x 5xx",
+    "file": "sim/src/sim/smoke.py"
+  },
+  "fifo": {
+    "genuine_users_attempted": 200,
+    "genuine_users_entered": 178,
+    "genuine_seats_confirmed": 16,
+    "genuine_fair_winners_confirmed": null,
+    "genuine_fair_winners": null,
+    "genuine_requests": 2063,
+    "genuine_429_responses": 6,
+    "genuine_429_rate": 0.0029,
+    "genuine_429_retry_succeeded": 6,
+    "genuine_429_retry_still_failing": 0,
+    "genuine_5xx": 85,
+    "genuine_transport_errors": 0,
+    "bot_requests": 55965,
+    "bot_request_rejection_rate_429": 0.8016,
+    "bot_entries": 42,
+    "attacker_seats": 34,
+    "seats": 50,
+    "attacker_entry_share": 0.191,
+    "attacker_seat_share": 0.68,
+    "advantage_ratio": 9.006,
+    "chance_band_95": [
+      5,
+      14
+    ],
+    "attacker_seats_inside_chance_band": false,
+    "arrival_vs_win_spearman": -0.651,
+    "bot_5xx": 353,
+    "latency_ms_genuine": {
+      "p50": 9.6,
+      "p95": 61.5,
+      "p99": 641.1,
+      "max": 1325.7,
+      "n": 2063
+    },
+    "achieved_avg_rps": 747.5,
+    "achieved_peak_rps": 4306
+  },
+  "fair": {
+    "genuine_users_attempted": 200,
+    "genuine_users_entered": 121,
+    "genuine_seats_confirmed": 36,
+    "genuine_fair_winners_confirmed": 35,
+    "genuine_fair_winners": 35,
+    "genuine_requests": 4908,
+    "genuine_429_responses": 29,
+    "genuine_429_rate": 0.0059,
+    "genuine_429_retry_succeeded": 9,
+    "genuine_429_retry_still_failing": 8,
+    "genuine_5xx": 623,
+    "genuine_transport_errors": 0,
+    "bot_requests": 228613,
+    "bot_request_rejection_rate_429": 0.9841,
+    "bot_entries": 54,
+    "attacker_seats": 14,
+    "seats": 50,
+    "attacker_entry_share": 0.309,
+    "attacker_seat_share": 0.28,
+    "advantage_ratio": 0.871,
+    "chance_band_95": [
+      10,
+      21
+    ],
+    "attacker_seats_inside_chance_band": true,
+    "arrival_vs_win_spearman": 0.039,
+    "bot_5xx": 323,
+    "latency_ms_genuine": {
+      "p50": 725.8,
+      "p95": 1103.0,
+      "p99": 1321.3,
+      "max": 1789.0,
+      "n": 4908
+    },
+    "achieved_avg_rps": 1849.3,
+    "achieved_peak_rps": 3996
+  },
+  "integrity": {
+    "fifo": {
+      "oversold": 0,
+      "duplicate_seats": 0,
+      "invariant_ok": true,
+      "sold": 50,
+      "replay_successes": 0,
+      "forged_successes": 0
+    },
+    "fair": {
+      "oversold": 0,
+      "duplicate_seats": 0,
+      "invariant_ok": true,
+      "sold": 50,
+      "replay_successes": 0,
+      "forged_successes": 0
+    }
+  },
+  "risk_detection": {
+    "fifo": {
+      "flagged_entries": 0,
+      "genuine_flagged": 0,
+      "shared_ip_genuine_flagged": 0,
+      "network_switch_genuine_flagged": 0,
+      "farm_recall": 0.0
+    },
+    "fair": {
+      "flagged_entries": 0,
+      "genuine_flagged": 0,
+      "shared_ip_genuine_flagged": 0,
+      "network_switch_genuine_flagged": 0,
+      "farm_recall": 0.0
+    }
+  },
+  "regression": {
+    "test": "api/tests/abuse/test_hooks.py::test_a_flood_the_limiter_rejects_cannot_take_sign_in_down",
+    "setup": "400 concurrent anonymous requests + 20 concurrent genuine OTP requests, ABUSE_ENFORCE=true",
+    "before_fix": "0/20 OTP requests succeeded (all 503)",
+    "after_fix": "20/20 OTP requests succeeded (all 200)",
+    "api_suite_after_fix": "279 passed",
+    "pre_fix_attack_run_fair_seed_101": {
+      "genuine_entered": 37,
+      "genuine_5xx": 1023,
+      "advantage_ratio": 0.655,
+      "attacker_seats": 31,
+      "chance_band_95": [
+        30,
+        40
+      ],
+      "arrival_vs_win_spearman": 0.15,
+      "oversold": 0,
+      "note": "raw run folder deleted by mistake; numbers from the console scorecard"
+    }
+  },
+  "limitations": [
+    "Under the 10k-client real-backend run, only 121/200 genuine users entered in the Fair run, so full genuine-user availability under this attack load is not yet proven. This is an availability/capacity limitation, not evidence that the fairness mechanism failed.",
+    "All 79 genuine users who did not enter never completed OTP sign-in after their retries (the 5xx in the pre-fix run were 503 on /auth/otp/request and /auth/otp/verify); every genuine user who signed in entered exactly once. The remaining cause is not isolated yet; the per-route 5xx breakdown was not captured for this run.",
+    "One post-fix seed only (101); the planned 3-seed run was not done.",
+    "Bot rejection rate is request-level (429s), not the share of bots kept from seats.",
+    "Fair mode does not remove the identity-count (Sybil) advantage; it removes the speed/request-volume advantage and limits each verified identity to one entry.",
+    "Farm detection: 0 farm entries reached the step-up score in this run (L6 kept farm accounts at <= 3 per device, below the R_DEVICE threshold).",
+    "Cloud sandbox: Docker started manually, local image shims for the proxy CA and dbmate, nofile capped at 20000 (none committed)."
+  ]
+}
